@@ -1,109 +1,142 @@
-import customtkinter
+import customtkinter as ctk
 import tkintermapview
 import re
 
+ctk.set_appearance_mode("dark")  
+ctk.set_default_color_theme("blue")
 
-class MapApp(customtkinter.CTk):
+
+class MapApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Modern Map Coordinate Marker")
-        self.geometry("900x600")
+        self.title("🗺️ Smart Map Navigator")
+        self.geometry("1000x600")
 
-        # --- Configure Grid Layout ---
+        # Layout
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- Sidebar Frame ---
-        self.sidebar = customtkinter.CTkFrame(self, width=200, corner_radius=0)
-        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        # ===== SIDEBAR =====
+        self.sidebar = ctk.CTkFrame(self, width=250, corner_radius=15)
+        self.sidebar.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.label = customtkinter.CTkLabel(
+        # Title
+        self.title_label = ctk.CTkLabel(
             self.sidebar,
-            text="Map Controls",
-            font=customtkinter.CTkFont(size=20, weight="bold")
+            text="📍 Map Controls",
+            font=ctk.CTkFont(size=22, weight="bold")
         )
-        self.label.pack(pady=20, padx=10)
+        self.title_label.pack(pady=(20, 10))
 
-        # Entry for Coordinates
-        self.coord_entry = customtkinter.CTkEntry(
+        # Divider
+        self.divider = ctk.CTkLabel(self.sidebar, text="────────────")
+        self.divider.pack(pady=5)
+
+        # Point 1 Label
+        self.p1_label = ctk.CTkLabel(self.sidebar, text="Point 1")
+        self.p1_label.pack(pady=(10, 0))
+
+        self.coord_entry1 = ctk.CTkEntry(
             self.sidebar,
-            placeholder_text="e.g. 19.0760° N, 72.8777° E"
+            placeholder_text="19.0760° N, 72.8777° E",
+            width=200
         )
-        self.coord_entry.pack(pady=10, padx=20)
+        self.coord_entry1.pack(pady=5)
+
+        # Point 2 Label
+        self.p2_label = ctk.CTkLabel(self.sidebar, text="Point 2")
+        self.p2_label.pack(pady=(10, 0))
+
+        self.coord_entry2 = ctk.CTkEntry(
+            self.sidebar,
+            placeholder_text="19.2183° N, 72.9781° E",
+            width=200
+        )
+        self.coord_entry2.pack(pady=5)
 
         # Button
-        self.button = customtkinter.CTkButton(
+        self.button = ctk.CTkButton(
             self.sidebar,
-            text="Add Marker",
+            text="🚀 Plot Path",
+            corner_radius=10,
+            height=40,
             command=self.add_marker_event
         )
-        self.button.pack(pady=10, padx=20)
+        self.button.pack(pady=20)
 
-        # Message Label
-        self.message_label = customtkinter.CTkLabel(self.sidebar, text="")
+        # Status Message
+        self.message_label = ctk.CTkLabel(
+            self.sidebar,
+            text="",
+            text_color="lightgreen"
+        )
         self.message_label.pack(pady=5)
 
-        # --- Map Widget ---
-        self.map_widget = tkintermapview.TkinterMapView(self, corner_radius=0)
-        self.map_widget.grid(row=0, column=1, sticky="nsew")
+        # ===== MAP =====
+        self.map_widget = tkintermapview.TkinterMapView(self, corner_radius=15)
+        self.map_widget.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
-        # Default position
         self.map_widget.set_position(20.0, 0.0)
         self.map_widget.set_zoom(2)
 
+    # ===== PARSER =====
+    def parse_coordinates(self, raw_input):
+        if "," not in raw_input:
+            raise ValueError("Missing comma")
+
+        lat_part, lon_part = raw_input.split(",", 1)
+
+        lat_part = re.sub(r"[^0-9.\-NSEW]", "", lat_part.upper())
+        lon_part = re.sub(r"[^0-9.\-NSEW]", "", lon_part.upper())
+
+        if "N" in lat_part:
+            lat = float(lat_part.replace("N", ""))
+        elif "S" in lat_part:
+            lat = -float(lat_part.replace("S", ""))
+        else:
+            lat = float(lat_part)
+
+        if "E" in lon_part:
+            lon = float(lon_part.replace("E", ""))
+        elif "W" in lon_part:
+            lon = -float(lon_part.replace("W", ""))
+        else:
+            lon = float(lon_part)
+
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            raise ValueError("Out of range")
+
+        return lat, lon
+
+    # ===== MAIN FUNCTION =====
     def add_marker_event(self):
-        raw_input = self.coord_entry.get().strip()
-
-        if not raw_input:
-            self.message_label.configure(text="Please enter coordinates!")
-            return
-
         try:
-            # Ensure comma
-            if "," not in raw_input:
-                raise ValueError("Missing comma")
+            input1 = self.coord_entry1.get().strip()
+            input2 = self.coord_entry2.get().strip()
 
-            lat_part, lon_part = raw_input.split(",", 1)
+            lat1, lon1 = self.parse_coordinates(input1)
+            lat2, lon2 = self.parse_coordinates(input2)
 
-            # Clean input using regex (handles ° and other symbols)
-            lat_part = re.sub(r"[^0-9.\-NSEW]", "", lat_part.upper())
-            lon_part = re.sub(r"[^0-9.\-NSEW]", "", lon_part.upper())
-
-            # Latitude
-            if "N" in lat_part:
-                lat = float(lat_part.replace("N", ""))
-            elif "S" in lat_part:
-                lat = -float(lat_part.replace("S", ""))
-            else:
-                lat = float(lat_part)
-
-            # Longitude
-            if "E" in lon_part:
-                lon = float(lon_part.replace("E", ""))
-            elif "W" in lon_part:
-                lon = -float(lon_part.replace("W", ""))
-            else:
-                lon = float(lon_part)
-
-            # Validate range
-            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-                raise ValueError("Out of range")
-
-
-            # Clear old markers
             self.map_widget.delete_all_marker()
 
-            # Add marker
-            self.map_widget.set_marker(lat, lon, text=f"{lat}, {lon}")
+            self.map_widget.set_marker(lat1, lon1, text="📍 Point 1")
+            self.map_widget.set_marker(lat2, lon2, text="📍 Point 2")
 
-            # Focus map
-            self.map_widget.set_position(lat, lon)
-            self.map_widget.set_zoom(15)
+            self.map_widget.set_path([(lat1, lon1), (lat2, lon2)])
 
+            center_lat = (lat1 + lat2) / 2
+            center_lon = (lon1 + lon2) / 2
+
+            self.map_widget.set_position(center_lat, center_lon)
+            self.map_widget.set_zoom(10)
 
         except Exception as e:
             print("Error:", e)
+            self.message_label.configure(
+                text="Invalid input ❌",
+                text_color="red"
+            )
 
 
 if __name__ == "__main__":
