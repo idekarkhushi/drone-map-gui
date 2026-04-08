@@ -133,11 +133,6 @@ class MapApp(ctk.CTk):
 
         except Exception as e:
             print("Error:", e)
-            self.message_label.configure(
-                text="Invalid input ❌",
-                text_color="red"
-            )
-
 
 if __name__ == "__main__":
     app = MapApp()
