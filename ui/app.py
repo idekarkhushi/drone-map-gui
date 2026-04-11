@@ -29,19 +29,33 @@ class MapApp(ctk.CTk):
 
         # ===== LAYOUT =====
         self.grid_columnconfigure(1, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0)  # Telemetry bar 
+        self.grid_rowconfigure(1, weight=1)  # Main content (expand)
+        
+        # ===== TELEMETRY BAR =====
+        self.telemetry_bar = ctk.CTkFrame(self, height=50)
+        self.telemetry_bar.grid(row=0, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+
+        # Telemetry Data
+        self.telemetry_speed = ctk.CTkLabel(self.telemetry_bar, text="Speed: 0 m/s")
+        self.telemetry_speed.pack(side="left", padx=15)
+
+        self.telemetry_distance = ctk.CTkLabel(self.telemetry_bar, text="Distance: 0 m")
+        self.telemetry_distance.pack(side="left", padx=15)
+
+        self.telemetry_status = ctk.CTkLabel(self.telemetry_bar, text="Status: Idle")
+        self.telemetry_status.pack(side="right", padx=15)
 
         # ===== LEFT PANEL =====
         self.left_panel = ctk.CTkFrame(self, width=100)
-        self.left_panel.grid(row=0, column=0, sticky="ns", padx=5, pady=5)
+        self.left_panel.grid(row=1, column=0, sticky="ns", padx=5, pady=5)
 
         ctk.CTkButton(self.left_panel, text="Load File", command=self.load_file).pack(pady=10)
         ctk.CTkButton(self.left_panel, text="Clear", command=self.clear_all).pack(pady=10)
 
         # ===== RIGHT PANEL =====(Floating Layer)
-        # sticky="nse" keeps it to the right
         self.right_panel = ctk.CTkFrame(self, width=200)
-        self.right_panel.grid(row=0, column=2, sticky="ns", padx=5, pady=5)
+        self.right_panel.grid(row=1, column=2, sticky="ns", padx=5, pady=5)
         
         self.speed_entry = ctk.CTkEntry(self.right_panel, placeholder_text="Speed (m/s)")
         self.speed_entry.pack(pady=10) # Speed Input
@@ -52,11 +66,11 @@ class MapApp(ctk.CTk):
         ctk.CTkButton(self.right_panel, text="Start Mission", command=self.start_simulation).pack(pady=10)
 
         self.message_label = ctk.CTkLabel(self.right_panel, text="")
-        self.message_label.pack(pady=10) # Message Display
+        self.message_label.pack(pady=10) # Message Display                
 
         # ===== MAP =====
         self.map_widget = tkintermapview.TkinterMapView(self)
-        self.map_widget.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        self.map_widget.grid(row=1, column=1, sticky="nsew", padx=5, pady=5)
 
         self.map_widget.set_position(19.0760, 72.8777)
         self.map_widget.set_zoom(12)

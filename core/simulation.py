@@ -12,6 +12,7 @@ class DroneSimulation:
             app.message_label.configure(text="Add at least 2 points")
             return
 
+        # ===== SPEED INPUT =====
         try:
             app.speed = float(app.speed_entry.get())
             if app.speed <= 0:
@@ -19,9 +20,15 @@ class DroneSimulation:
         except:
             app.speed = 5
 
+        # ===== RESET VALUES =====
         self.sim_index = 0
         self.step = 0
         app.total_distance = 0
+
+        # ===== TELEMETRY RESET =====
+        app.telemetry_status.configure(text="Status: Running")
+        app.telemetry_speed.configure(text=f"Speed: {app.speed} m/s")
+        app.telemetry_distance.configure(text="Distance: 0 m")
 
         if app.drone_marker:
             app.drone_marker.delete()
@@ -38,12 +45,15 @@ class DroneSimulation:
     def animate(self):
         app = self.app
 
+        # ===== END CONDITION =====
         if self.sim_index >= len(app.points) - 1:
+            app.telemetry_status.configure(text="Status: Completed")
             return
 
         start = app.points[self.sim_index]
         end = app.points[self.sim_index + 1]
 
+        # ===== DISTANCE & STEPS =====
         distance = calculate_distance(start, end)
         steps = max(int((distance / app.speed) / 0.025), 1)
 
@@ -52,15 +62,30 @@ class DroneSimulation:
         lat = start[0] + (end[0] - start[0]) * t
         lon = start[1] + (end[1] - start[1]) * t
 
-        app.total_distance += distance / steps
+        # ===== UPDATE TOTAL DISTANCE =====
+        step_distance = distance / steps
+        app.total_distance += step_distance
 
+        # ===== UPDATE RIGHT PANEL (existing) =====
         if app.total_distance < 1000:
-            app.distance_label.configure(text=f"Distance: {app.total_distance:.2f} m")
+            app.distance_label.configure(
+                text=f"Distance: {app.total_distance:.2f} m"
+            )
+            telemetry_text = f"Distance: {app.total_distance:.2f} m"
         else:
-            app.distance_label.configure(text=f"Distance: {app.total_distance/1000:.2f} km")
+            app.distance_label.configure(
+                text=f"Distance: {app.total_distance/1000:.2f} km"
+            )
+            telemetry_text = f"Distance: {app.total_distance/1000:.2f} km"
 
+        # ===== TELEMETRY BAR UPDATE =====
+        app.telemetry_distance.configure(text=telemetry_text)
+        app.telemetry_speed.configure(text=f"Speed: {app.speed} m/s")
+
+        # ===== ROTATION =====
         angle = get_angle(start, end)
 
+        # ===== MOVE DRONE =====
         app.drone_marker.set_position(lat, lon)
         app.drone_marker.change_icon(app.get_rotated_drone(angle))
 
@@ -72,4 +97,5 @@ class DroneSimulation:
             self.step = 0
             self.sim_index += 1
 
+        # ===== LOOP =====
         app.after(25, self.animate)
