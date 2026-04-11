@@ -38,20 +38,21 @@ class MapApp(ctk.CTk):
         ctk.CTkButton(self.left_panel, text="Load File", command=self.load_file).pack(pady=10)
         ctk.CTkButton(self.left_panel, text="Clear", command=self.clear_all).pack(pady=10)
 
-        # ===== RIGHT PANEL =====
+        # ===== RIGHT PANEL =====(Floating Layer)
+        # sticky="nse" keeps it to the right
         self.right_panel = ctk.CTkFrame(self, width=200)
         self.right_panel.grid(row=0, column=2, sticky="ns", padx=5, pady=5)
-
+        
         self.speed_entry = ctk.CTkEntry(self.right_panel, placeholder_text="Speed (m/s)")
-        self.speed_entry.pack(pady=10)
+        self.speed_entry.pack(pady=10) # Speed Input
 
         self.distance_label = ctk.CTkLabel(self.right_panel, text="Distance: 0 m")
-        self.distance_label.pack(pady=10)
+        self.distance_label.pack(pady=10) #Distance Display
 
         ctk.CTkButton(self.right_panel, text="Start Mission", command=self.start_simulation).pack(pady=10)
 
         self.message_label = ctk.CTkLabel(self.right_panel, text="")
-        self.message_label.pack(pady=10)
+        self.message_label.pack(pady=10) # Message Display
 
         # ===== MAP =====
         self.map_widget = tkintermapview.TkinterMapView(self)
@@ -90,7 +91,7 @@ class MapApp(ctk.CTk):
         except Exception as e:
             self.message_label.configure(text=str(e))
 
-    def map_click(self, coords):
+    def map_click(self, coords): 
         lat, lon = coords
 
         self.points.append((lat, lon))
