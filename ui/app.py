@@ -9,6 +9,9 @@ from ui.geofence_logic import handle_map_click
 from utils.file_loader import load_csv_waypoints
 from core.simulation import DroneSimulation
 
+from core.mavlink_handler import MAVLinkHandler
+from core.mission_handler import MissionHandler
+
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -31,6 +34,10 @@ class MapApp(ctk.CTk):
         self.geofence_mode = None
         self.geofence_points = []
         self.geofence_shapes = []
+        
+        # ===== MAVLINK & MISSION HANDLER =====
+        self.mavlink = MAVLinkHandler()
+        self.mission = MissionHandler(self.mavlink)
 
         # ===== LOAD IMAGE =====
         self.base_drone_img = Image.open(
@@ -49,7 +56,8 @@ class MapApp(ctk.CTk):
         self.telemetry_bar.grid_columnconfigure(0, weight=1)
         self.telemetry_bar.grid_columnconfigure(1, weight=1)
         self.telemetry_bar.grid_columnconfigure(2, weight=1)
-
+        self.telemetry_bar.grid_columnconfigure(3, weight=1)
+        
         # LEFT
         self.wp_title = ctk.CTkLabel(
             self.telemetry_bar, text="Selected Waypoint", font=("Arial", 12, "bold")
@@ -62,33 +70,44 @@ class MapApp(ctk.CTk):
         )
         self.wp_info.grid(row=1, column=0, sticky="w", padx=15)
 
-        # CENTER
         self.telemetry_status = ctk.CTkLabel(
             self.telemetry_bar, text="Status: Idle", font=("Arial", 12, "bold")
         )
-        self.telemetry_status.grid(row=0, column=1, pady=(5, 0))
+        self.telemetry_status.grid(row=2, column=0, sticky="w", padx=15)
 
-        self.telemetry_speed = ctk.CTkLabel(
-            self.telemetry_bar, text="Speed: 0 m/s"
+        self.telemetry_data = ctk.CTkLabel(
+            self.telemetry_bar, text="Speed: 0 m/s | Distance: 0 m", font=("Arial", 12)
         )
-        self.telemetry_speed.grid(row=1, column=1)
+        self.telemetry_data.grid(row=3, column=0, sticky="w", padx=(15,5))
+        
 
-        self.telemetry_distance = ctk.CTkLabel(
-            self.telemetry_bar, text="Distance: 0 m"
-        )
-        self.telemetry_distance.grid(row=2, column=1)
-
-        # RIGHT
+        # CENTER
         self.mission_title = ctk.CTkLabel(
             self.telemetry_bar, text="Total Mission", font=("Arial", 12, "bold")
         )
-        self.mission_title.grid(row=0, column=2, sticky="e", padx=15, pady=(5, 0))
+        self.mission_title.grid(row=0, column=1, sticky="w", padx=15, pady=(5, 0))
 
         self.mission_info = ctk.CTkLabel(
             self.telemetry_bar,
             text="Distance: 0 m | Time: 00:00 | Telem dist: 0 m"
         )
-        self.mission_info.grid(row=1, column=2, sticky="e", padx=15)
+        self.mission_info.grid(row=1, column=1, sticky="w", padx=15)
+        
+        # RIGHT
+        self.conn_type = ctk.CTkComboBox(self, values=["TCP", "UDP", "Serial"])
+        self.conn_type.set("TCP")
+        self.conn_type.grid(row=0, column=2, sticky="e", padx=15, pady=(5, 0))
+
+        self.ip_entry = ctk.CTkEntry(self)
+        self.ip_entry.insert(0, "127.0.0.1")
+        self.ip_entry.grid(row=1, column=2, sticky="e", padx=15)
+
+        self.port_entry = ctk.CTkEntry(self)
+        self.port_entry.insert(0, "5760")
+        self.port_entry.grid(row=2, column=2, sticky="e", padx=15)
+
+        self.connect_btn = ctk.CTkButton(self, text="CONNECT", command=self.connect_drone)
+        self.connect_btn.grid(row=0, column=2, sticky="e", padx=15)
 
         # ===== LEFT PANEL =====
         self.left_panel = ctk.CTkFrame(self, width=100)
@@ -133,7 +152,49 @@ class MapApp(ctk.CTk):
 
         # ===== SIMULATION =====
         self.simulation = DroneSimulation(self)
+        
+    # ================= CONNECT DRONE (SIMULATION) =================
+    def connect_drone(self):
+        conn_type = self.conn_type.get()
+        ip = self.ip_entry.get()
+        port = self.port_entry.get()
 
+        print(conn_type, ip, port)  # test
+
+        if success:
+            self.conn_status.configure(text="Connected")
+
+            self.mavlink.start_telemetry(self.handle_telemetry)
+        
+    def update_status(self, choice):
+        self.message_label.configure(text=f"Selected connection: {choice}")
+    
+    def handle_telemetry(self, msg):
+        msg_type = msg.get_type()
+
+        if msg_type == "GLOBAL_POSITION_INT":
+            lat = msg.lat / 1e7
+            lon = msg.lon / 1e7
+
+            self.gps_label.configure(text=f"{lat:.5f}, {lon:.5f}")
+
+            if self.drone_marker:
+                self.drone_marker.set_position(lat, lon)
+            else:
+                self.drone_marker = self.map_widget.set_marker(lat, lon)
+
+        elif msg_type == "SYS_STATUS":
+            self.battery_label.configure(text=f"{msg.battery_remaining}%")   
+        
+        # Takeoff button
+        self.mission.takeoff(50)
+
+        # Send waypoint
+        self.mission.send_waypoint(lat, lon, 100)
+
+        # Land
+        self.mission.land()    
+        
     # ================= FILE LOAD =================
     def load_file(self):
         file_path = filedialog.askopenfilename(

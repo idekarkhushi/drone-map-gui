@@ -29,8 +29,8 @@ class DroneSimulation:
 
         # ===== TELEMETRY RESET =====
         app.telemetry_status.configure(text="Status: Running")
-        app.telemetry_speed.configure(text=f"Speed: {app.speed} m/s")
-        app.telemetry_distance.configure(text="Distance: 0 m")
+        app.telemetry_data.configure(text=f"Speed: {app.speed} m/s| Distance: {app.total_distance:.2f} m")
+        
 
         # Reset top bar sections
         app.wp_info.configure(
@@ -111,8 +111,7 @@ class DroneSimulation:
         app.distance_label.configure(text=f"Distance: {dist_text}")
 
         # ===== TELEMETRY BAR (TOP RIGHT) =====
-        app.telemetry_distance.configure(text=f"Distance: {dist_text}")
-        app.telemetry_speed.configure(text=f"Speed: {app.speed} m/s")
+        app.telemetry_data.configure(text=f"Speed: {app.speed} m/s | Distance: {dist_text}")
 
         # ===== ANGLE =====
         angle = get_angle(start, end)
