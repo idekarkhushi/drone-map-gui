@@ -5,6 +5,8 @@ class MAVLinkHandler:
     def __init__(self):
         self.master = None
         self.running = False
+        
+        self.connection_types = ["TCP", "UDP", "Serial"]
 
     def connect(self, conn_type, ip, port, com, baud):
         if conn_type == "TCP":

@@ -94,20 +94,20 @@ class MapApp(ctk.CTk):
         self.mission_info.grid(row=1, column=1, sticky="w", padx=15)
         
         # RIGHT
-        self.conn_type = ctk.CTkComboBox(self, values=["TCP", "UDP", "Serial"])
+        self.conn_type = ctk.CTkComboBox(self, values=["TCP", "UDP", "Serial"], width=150)
         self.conn_type.set("TCP")
-        self.conn_type.grid(row=0, column=2, sticky="e", padx=15, pady=(5, 0))
+        self.conn_type.grid(row=0, column=2, sticky="e", padx=15, pady=(20, 5))
 
-        self.ip_entry = ctk.CTkEntry(self)
+        self.ip_entry = ctk.CTkEntry(self, width=150)
         self.ip_entry.insert(0, "127.0.0.1")
-        self.ip_entry.grid(row=1, column=2, sticky="e", padx=15)
+        self.ip_entry.grid(row=1, column=2, sticky="e", padx=15, pady=5)   
 
-        self.port_entry = ctk.CTkEntry(self)
+        self.port_entry = ctk.CTkEntry(self, width=150)
         self.port_entry.insert(0, "5760")
-        self.port_entry.grid(row=2, column=2, sticky="e", padx=15)
+        self.port_entry.grid(row=2, column=2, sticky="e", padx=15, pady=5)
 
-        self.connect_btn = ctk.CTkButton(self, text="CONNECT", command=self.connect_drone)
-        self.connect_btn.grid(row=0, column=2, sticky="e", padx=15)
+        self.connect_btn = ctk.CTkButton(self, text="CONNECT", command=self.connect_drone, width=150, fg_color="#1f538d")
+        self.connect_btn.grid(row=3, column=2, sticky="e", padx=15, pady=(10, 20))
 
         # ===== LEFT PANEL =====
         self.left_panel = ctk.CTkFrame(self, width=100)
