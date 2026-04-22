@@ -11,6 +11,7 @@ ctk.set_default_color_theme("blue")
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
+     
 
         self.title("Mission Planner")
         self.geometry("1200x700")
@@ -19,6 +20,7 @@ class App(ctk.CTk):
         self.waypoints = []
         self.map_markers = []
         self.table_rows = []
+    
 
 
         # ===== TOP TOOLBAR =====
@@ -33,8 +35,8 @@ class App(ctk.CTk):
         self.right_toolbar.pack(side="right", padx=8, pady=2)
 
         self.icons = {
-            "data": ctk.CTkImage(Image.open(r"Updated GUI/data.png"), size=(18, 18)),
-            "plan": ctk.CTkImage(Image.open(r"Updated GUI/plan.png"), size=(18, 18)),
+            "data": ctk.CTkImage(Image.open(r"C:\Users\ADMIN\Desktop\Drone GUI\Updated GUI\data.png"), size=(18, 18)),
+            "plan": ctk.CTkImage(Image.open(r"C:\Users\ADMIN\Desktop\Drone GUI\Updated GUI\plan.png"), size=(18, 18)),
         }
 
         self.add_toolbar_button("DATA", self.icons["data"], lambda: self.show("data"))
