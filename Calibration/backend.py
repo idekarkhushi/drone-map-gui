@@ -1,23 +1,54 @@
-from pymavlink import mavutil
+import logging
 import threading
 import time
 
+from pymavlink import mavutil
+from serial import SerialException
+
+log = logging.getLogger(__name__)
+
 
 class DroneBackend:
+    ACCEL_POSITION_LABELS = {
+        1: "level",
+        2: "on its LEFT side",
+        3: "on its RIGHT side",
+        4: "nose DOWN",
+        5: "nose UP",
+        6: "upside DOWN",
+    }
+
+    # Terminal signals sent by ArduPilot after calibration ends.
+    # These are not real position requests and must be ignored.
+    ACCEL_TERMINAL_POSITIONS = {16777215, 16777216}
+
     def __init__(self):
         self.master = None
         self.running = False
         self.last_heartbeat = None
 
+        self._lock = threading.Lock()
+
         # Calibration state
         self.in_calibration = False
         self.current_step = 0
+        self._current_requested_position = None
+        self._ack_in_flight = False
+
+        # Compass
+        self.compass_calibration = False
+
+        # Movement detection
+        self.is_moving = False
 
         # GUI callbacks
         self.cb_status = None
         self.cb_text = None
         self.cb_telemetry = None
         self.cb_ack = None
+        self.cb_progress = None
+        self.cb_confirm_ready = None
+        self.cb_calibration_done = None
 
     # ================= CONNECTION =================
 
@@ -32,70 +63,125 @@ class DroneBackend:
             self._status(f"Connected to {port}", "green")
 
             threading.Thread(target=self._reader_loop, daemon=True).start()
+            threading.Thread(target=self._heartbeat_watchdog, daemon=True).start()
+            return True
 
         except Exception as e:
+            self.master = None
             self._status(f"Connection failed: {e}", "red")
+            return False
 
     def disconnect(self):
         self.running = False
-
         if self.master:
             try:
                 self.master.close()
-            except:
+            except Exception:
                 pass
-
         self.master = None
         self._status("Disconnected", "#cccccc")
 
-    # ================= ACCEL CALIBRATION =================
+    # ================= ACCEL =================
 
     def start_accel_calibration(self):
-        """Start calibration (FIRST CLICK)"""
         if not self.master:
             self._status("Not connected", "red")
-            return
+            return False
 
-        try:
-            self.master.mav.command_long_send(
-                self.master.target_system,
-                self.master.target_component,
-                mavutil.mavlink.MAV_CMD_PREFLIGHT_CALIBRATION,
-                0,
-                0, 0, 0, 0,
-                1,  # accelerometer calibration
-                0, 0
-            )
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_PREFLIGHT_CALIBRATION,
+            0,
+            0, 0, 0, 0,
+            1,
+            0, 0,
+        )
 
+        with self._lock:
             self.in_calibration = True
             self.current_step = 0
+            self._current_requested_position = None
+            self._ack_in_flight = False
 
-            self._status("Calibration started - follow instructions", "#f0ad4e")
+        self._progress(0)
+        self._confirm_ready(False)
+        self._status("Accel calibration started - waiting for position request", "#f0ad4e")
+        return True
 
-        except Exception as e:
-            self._status(f"Calibration error: {e}", "red")
+    def confirm_position(self):
+        """
+        Called when the user clicks Next after placing the drone in the
+        requested orientation.
+        """
+        with self._lock:
+            pos = self._current_requested_position
+            moving = self.is_moving
 
-    def next_accel_step(self, position):
-        """Next step (EVERY CLICK AFTER FIRST)"""
-        if not self.master or not self.in_calibration:
-            self._status("Not in calibration mode", "red")
+        if pos is None:
+            self._status("No position requested yet", "red")
             return
 
-        try:
-            self.master.mav.command_long_send(
-                self.master.target_system,
-                self.master.target_component,
-                mavutil.mavlink.MAV_CMD_ACCELCAL_VEHICLE_POS,
-                0,
-                float(position),  # step position
-                0, 0, 0, 0, 0, 0
-            )
+        if moving:
+            self._status("Keep drone still!", "red")
+            return
 
+        # Disable button and mark ack in flight immediately so that
+        # repeated COMMAND_LONG requests from the drone while the ack
+        # is being processed do not re-enable the button or send a
+        # second ack.
+        self._confirm_ready(False)
+        with self._lock:
+            self._current_requested_position = None
+            self._ack_in_flight = True
+
+        self._next_accel_step(pos)
+
+    def _next_accel_step(self, position):
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_ACCELCAL_VEHICLE_POS,
+            0,
+            float(position),
+            0, 0, 0, 0, 0, 0,
+        )
+
+        with self._lock:
             self.current_step = position
-            self._status(f"Step {position} sent", "#f0ad4e")
+            self._ack_in_flight = False
 
-        except Exception as e:
-            self._status(f"Calibration error: {e}", "red")
+        progress = min(int((position / 6) * 100), 100)
+        self._progress(progress)
+
+    def _accel_position_text(self, position):
+        label = self.ACCEL_POSITION_LABELS.get(position)
+        if label is None:
+            return f"position {position}"
+        return f"position {position} ({label})"
+
+    # ================= COMPASS =================
+
+    def start_compass_calibration(self):
+        if not self.master:
+            self._status("Not connected", "red")
+            return False
+
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_PREFLIGHT_CALIBRATION,
+            0,
+            0, 1, 0, 0,
+            0, 0, 0,
+        )
+
+        with self._lock:
+            self.compass_calibration = True
+
+        self._progress(0)
+        self._status("Compass calibration started", "#f0ad4e")
+        return True
 
     # ================= MAVLINK LOOP =================
 
@@ -108,45 +194,131 @@ class DroneBackend:
 
                 msg_type = msg.get_type()
 
-                # ================= HEARTBEAT =================
                 if msg_type == "HEARTBEAT":
-                    self.last_heartbeat = time.time()
+                    with self._lock:
+                        self.last_heartbeat = time.time()
                     mode = mavutil.mode_string_v10(msg)
                     self._telemetry(mode=mode)
 
-                # ================= BATTERY =================
                 elif msg_type == "SYS_STATUS":
                     battery = getattr(msg, "battery_remaining", -1)
                     self._telemetry(battery=battery)
 
-                # ================= STATUSTEXT =================
+                elif msg_type == "RAW_IMU":
+                    ax = msg.xacc / 1000.0
+                    ay = msg.yacc / 1000.0
+                    az = msg.zacc / 1000.0
+
+                    moving = (
+                        abs(ax) > 0.3 or
+                        abs(ay) > 0.3 or
+                        abs(az - 1.0) > 0.2
+                    )
+
+                    with self._lock:
+                        self.is_moving = moving
+
+                    if moving:
+                        self._status("Drone moving!", "red")
+
                 elif msg_type == "STATUSTEXT":
-                    text = msg.text
+                    raw = msg.text
+                    if isinstance(raw, bytes):
+                        text = raw.decode("utf-8", errors="ignore").rstrip("\x00")
+                    else:
+                        text = str(raw).rstrip("\x00")
+
                     self._text(text)
+                    lowered = text.lower()
 
-                    if not self.in_calibration:
-                        continue
+                    if "successful" in lowered:
+                        self._progress(100)
+                        with self._lock:
+                            self.in_calibration = False
+                            self.compass_calibration = False
+                            self._current_requested_position = None
+                            self._ack_in_flight = False
+                        self._confirm_ready(False)
+                        self._status("Calibration successful", "green")
+                        self._calibration_done(success=True)
 
-                    t = text.lower()
+                    elif "failed" in lowered:
+                        with self._lock:
+                            self.in_calibration = False
+                            self.compass_calibration = False
+                            self._current_requested_position = None
+                            self._ack_in_flight = False
+                        self._confirm_ready(False)
+                        self._status("Calibration failed", "red")
+                        self._calibration_done(success=False)
 
-                    # ONLY completion / failure (manual control logic)
-                    if "calibration successful" in t or "calibration complete" in t:
-                        self.in_calibration = False
-                        self._status("Calibration Completed ✅", "green")
+                elif msg_type == "COMMAND_LONG":
+                    if msg.command == mavutil.mavlink.MAV_CMD_ACCELCAL_VEHICLE_POS:
+                        position = int(msg.param1)
 
-                    elif "failed" in t or "error" in t:
-                        self.in_calibration = False
-                        self._status(f"Calibration Failed: {text}", "red")
+                        # 16777215 (SUCCESS) and 16777216 (FAILED) are terminal
+                        # signals from ArduPilot, not real position requests.
+                        # Silently ignore them — STATUSTEXT already handles the
+                        # success/fail outcome.
+                        if position in self.ACCEL_TERMINAL_POSITIONS:
+                            log.info("Accel cal terminal signal received: %d", position)
+                            continue
 
-                # ================= ACK =================
+                        position_text = self._accel_position_text(position)
+
+                        with self._lock:
+                            ack_in_flight = self._ack_in_flight
+                            self._current_requested_position = position
+
+                        # If an ack is already in flight for this position,
+                        # the drone is just re-requesting because it hasn't
+                        # received our packet yet. Don't re-enable the button.
+                        if not ack_in_flight:
+                            self._status(
+                                f"Place drone {position_text}, keep it still, then click Next",
+                                "#f0ad4e",
+                            )
+                            self._text(f"Please place vehicle {position_text}")
+                            self._confirm_ready(True)
+
+                elif msg_type == "MAG_CAL_PROGRESS":
+                    self._progress(msg.completion_pct)
+
+                elif msg_type == "MAG_CAL_REPORT":
+                    if msg.cal_status == mavutil.mavlink.MAG_CAL_SUCCESS:
+                        self._status("Compass success", "green")
+                    else:
+                        self._status("Compass failed", "red")
+
                 elif msg_type == "COMMAND_ACK":
                     self._ack(msg.result)
 
-            except Exception as e:
-                self._status(f"Error: {e}", "red")
+            except SerialException as e:
+                log.error("Serial port lost: %s", e)
+                self.running = False
+                with self._lock:
+                    self.in_calibration = False
+                    self.compass_calibration = False
+                    self._current_requested_position = None
+                    self._ack_in_flight = False
+                self._confirm_ready(False)
+                self._status("Disconnected - cable unplugged or device reset", "red")
+                self._calibration_done(success=False)
                 break
 
-    # ================= CALLBACK HELPERS =================
+            except Exception as e:
+                log.exception("Reader loop error")
+                self._status(f"Error: {e}", "red")
+
+    def _heartbeat_watchdog(self):
+        while self.running:
+            time.sleep(1)
+            with self._lock:
+                last = self.last_heartbeat
+            if last is not None and (time.time() - last) > 5:
+                self._status("Heartbeat lost!", "red")
+
+    # ================= CALLBACKS =================
 
     def _status(self, text, color):
         if self.cb_status:
@@ -163,3 +335,15 @@ class DroneBackend:
     def _ack(self, result):
         if self.cb_ack:
             self.cb_ack(result)
+
+    def _progress(self, value):
+        if self.cb_progress:
+            self.cb_progress(value)
+
+    def _confirm_ready(self, enabled: bool):
+        if self.cb_confirm_ready:
+            self.cb_confirm_ready(enabled)
+
+    def _calibration_done(self, success: bool):
+        if self.cb_calibration_done:
+            self.cb_calibration_done(success)
