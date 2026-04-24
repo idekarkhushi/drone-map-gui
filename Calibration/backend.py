@@ -18,8 +18,6 @@ class DroneBackend:
         6: "upside DOWN",
     }
 
-    # Terminal signals sent by ArduPilot after calibration ends.
-    # These are not real position requests and must be ignored.
     ACCEL_TERMINAL_POSITIONS = {16777215, 16777216}
 
     def __init__(self):
@@ -29,19 +27,16 @@ class DroneBackend:
 
         self._lock = threading.Lock()
 
-        # Calibration state
+        # Accelerometer calibration is a request/confirm flow:
+        # autopilot requests a pose -> UI enables "Next" -> user confirms pose.
         self.in_calibration = False
         self.current_step = 0
         self._current_requested_position = None
         self._ack_in_flight = False
 
-        # Compass
         self.compass_calibration = False
-
-        # Movement detection
         self.is_moving = False
 
-        # GUI callbacks
         self.cb_status = None
         self.cb_text = None
         self.cb_telemetry = None
@@ -49,6 +44,7 @@ class DroneBackend:
         self.cb_progress = None
         self.cb_confirm_ready = None
         self.cb_calibration_done = None
+        self.cb_position_update = None  # (position, state) state = "active"|"done"|"reset"
 
     # ================= CONNECTION =================
 
@@ -88,6 +84,7 @@ class DroneBackend:
             self._status("Not connected", "red")
             return False
 
+        # MAV_CMD_PREFLIGHT_CALIBRATION uses param5=1 to start accel calibration.
         self.master.mav.command_long_send(
             self.master.target_system,
             self.master.target_component,
@@ -106,14 +103,11 @@ class DroneBackend:
 
         self._progress(0)
         self._confirm_ready(False)
+        self._position_update(0, "reset")
         self._status("Accel calibration started - waiting for position request", "#f0ad4e")
         return True
 
     def confirm_position(self):
-        """
-        Called when the user clicks Next after placing the drone in the
-        requested orientation.
-        """
         with self._lock:
             pos = self._current_requested_position
             moving = self.is_moving
@@ -126,10 +120,6 @@ class DroneBackend:
             self._status("Keep drone still!", "red")
             return
 
-        # Disable button and mark ack in flight immediately so that
-        # repeated COMMAND_LONG requests from the drone while the ack
-        # is being processed do not re-enable the button or send a
-        # second ack.
         self._confirm_ready(False)
         with self._lock:
             self._current_requested_position = None
@@ -138,6 +128,8 @@ class DroneBackend:
         self._next_accel_step(pos)
 
     def _next_accel_step(self, position):
+        # Send the currently requested orientation back to the flight controller
+        # to acknowledge that the vehicle has been placed and kept still.
         self.master.mav.command_long_send(
             self.master.target_system,
             self.master.target_component,
@@ -151,6 +143,7 @@ class DroneBackend:
             self.current_step = position
             self._ack_in_flight = False
 
+        self._position_update(position, "done")
         progress = min(int((position / 6) * 100), 100)
         self._progress(progress)
 
@@ -209,6 +202,8 @@ class DroneBackend:
                     ay = msg.yacc / 1000.0
                     az = msg.zacc / 1000.0
 
+                    # Use a simple stillness heuristic so "Next" is only accepted
+                    # when the vehicle is roughly stationary and upright enough.
                     moving = (
                         abs(ax) > 0.3 or
                         abs(ay) > 0.3 or
@@ -256,10 +251,8 @@ class DroneBackend:
                     if msg.command == mavutil.mavlink.MAV_CMD_ACCELCAL_VEHICLE_POS:
                         position = int(msg.param1)
 
-                        # 16777215 (SUCCESS) and 16777216 (FAILED) are terminal
-                        # signals from ArduPilot, not real position requests.
-                        # Silently ignore them — STATUSTEXT already handles the
-                        # success/fail outcome.
+                        # Some firmwares send terminal sentinel values at the end
+                        # of the accel-cal sequence instead of a real placement.
                         if position in self.ACCEL_TERMINAL_POSITIONS:
                             log.info("Accel cal terminal signal received: %d", position)
                             continue
@@ -270,10 +263,8 @@ class DroneBackend:
                             ack_in_flight = self._ack_in_flight
                             self._current_requested_position = position
 
-                        # If an ack is already in flight for this position,
-                        # the drone is just re-requesting because it hasn't
-                        # received our packet yet. Don't re-enable the button.
                         if not ack_in_flight:
+                            self._position_update(position, "active")
                             self._status(
                                 f"Place drone {position_text}, keep it still, then click Next",
                                 "#f0ad4e",
@@ -315,9 +306,10 @@ class DroneBackend:
             time.sleep(1)
             with self._lock:
                 last = self.last_heartbeat
+            # Surface a stale-link warning even if the serial port is still open.
             if last is not None and (time.time() - last) > 5:
                 self._status("Heartbeat lost!", "red")
-
+        
     # ================= CALLBACKS =================
 
     def _status(self, text, color):
@@ -347,3 +339,7 @@ class DroneBackend:
     def _calibration_done(self, success: bool):
         if self.cb_calibration_done:
             self.cb_calibration_done(success)
+
+    def _position_update(self, position: int, state: str):
+        if self.cb_position_update:
+            self.cb_position_update(position, state)
