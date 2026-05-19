@@ -1,7 +1,13 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import customtkinter as ctk
 import tkintermapview
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils.file_loader import load_csv_waypoints
 
 
 class PlanPage(ctk.CTkFrame):
@@ -48,9 +54,16 @@ class PlanPage(ctk.CTkFrame):
         section = ctk.CTkFrame(parent, fg_color="transparent")
         section.pack(fill="both", expand=True, padx=2, pady=4)
 
-        buttons = ["Load", "Read", "Write", "Start", "Clear"]
-        for b in buttons:
-            ctk.CTkButton(section, text=b, height=34).pack(fill="x", pady=4)
+        buttons_config = [
+            ("Load", self.load_file),
+            ("Read", lambda: None),
+            ("Write", lambda: None),
+            ("Start", lambda: None),
+            ("Clear", self.clear_waypoints),
+        ]
+        
+        for label, command in buttons_config:
+            ctk.CTkButton(section, text=label, height=34, command=command).pack(fill="x", pady=4)
 
     # ================= BOTTOM PANEL =================
     def _build_bottom_panel(self):
@@ -128,6 +141,35 @@ class PlanPage(ctk.CTkFrame):
             "⬇",
             "0"
         ))
+    
+    def load_file(self):
+        """Load waypoints from a CSV file"""
+        file_path = filedialog.askopenfilename(
+            title="Load Waypoints File",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+        
+        try:
+            waypoints = load_csv_waypoints(file_path)
+            
+            # Clear existing waypoints
+            self.clear_waypoints()
+            
+            # Load new waypoints
+            for lat, lon in waypoints:
+                self.add_waypoint((lat, lon))
+            
+            print(f"Loaded {len(waypoints)} waypoints from {file_path}")
+        except Exception as e:
+            print(f"Error loading file: {e}")
+    
+    def clear_waypoints(self):
+        """Clear all waypoints from map and table"""
+        self.tree.delete(*self.tree.get_children())
+        self.map.delete_all_marker()
     
     #Table Handler
     def handle_table_click(self, event):

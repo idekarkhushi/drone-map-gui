@@ -80,7 +80,7 @@ class DroneSimulation:
             app.telemetry_status.configure(text="Status: GEOFENCE BREACH")
             app.message_label.configure(text="Drone exited GeoFence!")
             
-            # 🔴 CHANGE FENCE COLOR
+            # CHANGE FENCE COLOR
             for shape in app.geofence_shapes:
                 try:
                     shape.set_color("red")
