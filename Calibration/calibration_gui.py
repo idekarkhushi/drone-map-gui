@@ -1,5 +1,6 @@
+import os
 from tkinter import font
-
+from PIL import Image, ImageEnhance
 import customtkinter as ctk
 import serial.tools.list_ports
 
@@ -80,6 +81,8 @@ class CalibrationWindow(ctk.CTk):
             "RC Calibration": 0,
             "Log": 0,
         }
+        
+        self._accel_images = self._load_accel_images()
 
         # ── Top connection bar ────────────────────────────────────────────
         self._build_connection_bar()
@@ -216,6 +219,48 @@ class CalibrationWindow(ctk.CTk):
     # ACCELEROMETER TAB
     # ──────────────────────────────────────────────────────────────────────────
 
+    def _load_accel_images(self):
+        """
+        Load the 6 accel position images in 3 states:
+        - "idle":   greyscale / dimmed
+        - "active": full colour (original)
+        - "done":   green-tinted
+        Returns dict: {position: {"idle": CTkImage, "active": CTkImage, "done": CTkImage}}
+        """
+        IMAGE_PATHS = {
+            1: "Calibration/Level.png",
+            2: "Calibration/Left side.png",
+            3: "Calibration/Right side.png",
+            4: "Calibration/Nose Down.png",
+            5: "Calibration/Nose Up.png",
+            6: "Calibration/Upside Down.png",
+        }
+        SIZE = (100, 80)
+        result = {}
+
+        for pos, path in IMAGE_PATHS.items():
+            try:
+                original = Image.open(path).convert("RGBA").resize(SIZE)
+
+                # Idle: original image, slightly dimmed
+                idle_img = ImageEnhance.Brightness(original.copy()).enhance(0.6)
+
+                # Active: full colour (slightly brightened)
+                active_img = original.copy()
+
+                # Done: green tint overlay
+                done_img = original.copy()
+
+                result[pos] = {
+                    "idle":   ctk.CTkImage(idle_img,   size=SIZE),
+                    "active": ctk.CTkImage(active_img, size=SIZE),
+                    "done":   ctk.CTkImage(done_img,   size=SIZE),
+                }
+            except FileNotFoundError:
+                result[pos] = None  # graceful fallback
+
+        return result
+
     def _build_accel_tab(self):
         tab = self.tabview.tab("Accelerometer")
 
@@ -230,7 +275,7 @@ class CalibrationWindow(ctk.CTk):
         )
         self._accel_instruction.pack(anchor="w", padx=12, pady=(12, 4))
 
-        # Position indicator rows
+        # Position indicator grid (2 rows × 3 columns)
         ctk.CTkLabel(
             tab,
             text="Positions",
@@ -239,25 +284,52 @@ class CalibrationWindow(ctk.CTk):
         ).pack(anchor="w", padx=12, pady=(8, 2))
 
         indicator_frame = ctk.CTkFrame(tab, fg_color="transparent")
-        indicator_frame.pack(fill="x", padx=12)
+        indicator_frame.pack(fill="both", expand=True, padx=12, pady=(0, 8))
+
+        for col in range(3):
+            indicator_frame.columnconfigure(col, weight=1)
+        indicator_frame.rowconfigure(0, weight=1)
+        indicator_frame.rowconfigure(1, weight=1)
 
         self._position_rows = {}
         for pos, name in POSITION_LABELS.items():
-            row = ctk.CTkFrame(indicator_frame, fg_color="transparent")
-            row.pack(fill="x", pady=2)
+            row_idx = (pos - 1) // 3
+            col_idx = (pos - 1) % 3
 
-            dot = ctk.CTkLabel(row, text="●", width=18, font=ctk.CTkFont(size=14), text_color="#555555")
-            dot.pack(side="left")
+            cell = ctk.CTkFrame(indicator_frame, fg_color="#1F1E1E", corner_radius=10, border_width=2, border_color="#1F1E1E")
+            cell.grid(row=row_idx, column=col_idx, padx=6, pady=6, sticky="nsew")
 
-            lbl = ctk.CTkLabel(row, text=f"{pos}. {name}", font=ctk.CTkFont(size=13), anchor="w")
-            lbl.pack(side="left", fill="x", expand=True)
+            imgs = self._accel_images.get(pos)
+            if imgs:
+                img_lbl = ctk.CTkLabel(cell, image=imgs["idle"], text="")
+            else:
+                img_lbl = ctk.CTkLabel(cell, text="●", font=ctk.CTkFont(size=24),
+                                    text_color="#555555")
+            img_lbl.pack(pady=(10, 4))
 
-            pct = ctk.CTkLabel(row, text="", width=40, font=ctk.CTkFont(size=12), text_color="gray")
-            pct.pack(side="right")
+            name_lbl = ctk.CTkLabel(
+                cell, text=f"{pos}. {name}",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color="#888888",
+            )
+            name_lbl.pack()
 
-            self._position_rows[pos] = {"dot": dot, "label": lbl, "pct": pct}
+            pct_lbl = ctk.CTkLabel(
+                cell, text="",
+                font=ctk.CTkFont(size=11),
+                text_color="gray",
+            )
+            pct_lbl.pack(pady=(2, 8))
 
-        # Next button for accelerometer calibration
+            self._position_rows[pos] = {
+                "cell": cell,
+                "img_lbl": img_lbl,
+                "label": name_lbl,
+                "pct": pct_lbl,
+                "has_image": imgs is not None,
+            }
+
+        # Next button
         self.accel_next_btn = ctk.CTkButton(
             tab,
             text="Next Position",
@@ -266,7 +338,7 @@ class CalibrationWindow(ctk.CTk):
             fg_color="#219653",
             hover_color="#1b7b43",
         )
-        self.accel_next_btn.pack(anchor="w", padx=12, pady=(14, 4))
+        self.accel_next_btn.pack(anchor="w", padx=12, pady=(8, 4))
 
     # ──────────────────────────────────────────────────────────────────────────
     # COMPASS TAB
@@ -615,9 +687,14 @@ class CalibrationWindow(ctk.CTk):
 
     def update_position_indicator(self, position: int, state: str):
         if state == "reset":
-            for row in self._position_rows.values():
-                row["dot"].configure(text_color="#555555")
-                row["label"].configure(text_color=("gray20", "gray80"))
+            for pos, row in self._position_rows.items():
+                imgs = self._accel_images.get(pos)
+                if row["has_image"] and imgs:
+                    row["img_lbl"].configure(image=imgs["idle"])
+                else:
+                    row["img_lbl"].configure(text_color="#555555")
+                row["cell"].configure(fg_color="#1a1a2e", border_width=0)
+                row["label"].configure(text_color="#888888")
                 row["pct"].configure(text="")
             self._accel_instruction.configure(
                 text="Waiting for first position request from flight controller…"
@@ -628,10 +705,16 @@ class CalibrationWindow(ctk.CTk):
             return
 
         row = self._position_rows[position]
+        imgs = self._accel_images.get(position)
         name = POSITION_LABELS.get(position, f"Position {position}")
 
         if state == "active":
-            row["dot"].configure(text_color="#f0ad4e")
+            if row["has_image"] and imgs:
+                row["img_lbl"].configure(image=imgs["active"])
+            else:
+                row["img_lbl"].configure(text_color="#f0ad4e")
+            # Highlight the card with an amber border
+            row["cell"].configure(fg_color="#2a2010", border_width=2, border_color="#f0ad4e")
             row["label"].configure(text_color="#f0ad4e")
             row["pct"].configure(text="…")
             self._accel_instruction.configure(
@@ -640,7 +723,12 @@ class CalibrationWindow(ctk.CTk):
 
         elif state == "done":
             pct = min(int((position / 6) * 100), 100)
-            row["dot"].configure(text_color="#2ecc71")
+            if row["has_image"] and imgs:
+                row["img_lbl"].configure(image=imgs["done"])
+            else:
+                row["img_lbl"].configure(text_color="#2ecc71")
+            # Green card border on completion
+            row["cell"].configure(fg_color="#0d1f0d", border_width=2, border_color="#2ecc71")
             row["label"].configure(text_color="#2ecc71")
             row["pct"].configure(text=f"{pct}%")
             if position == 6:
