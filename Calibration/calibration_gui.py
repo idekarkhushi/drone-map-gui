@@ -406,28 +406,72 @@ class CalibrationWindow(ctk.CTk):
             }
             self._mag_bar_values[mag_id] = 0.0
             
+        # ── Compass calibration illustration ──────────────────────────────
+        try:
+            from PIL import Image as _PILImage
+            _compass_img = _PILImage.open("Calibration/Compass_cal.png").convert("RGBA")
+            _w, _h = _compass_img.size
+            # Scale to fit nicely (max 420 wide)
+            _scale = min(420 / _w, 160 / _h)
+            _display_size = (int(_w * _scale), int(_h * _scale))
+            self._compass_ctk_image = ctk.CTkImage(
+                light_image=_compass_img,
+                dark_image=_compass_img,
+                size=_display_size,
+            )
+            _has_compass_img = True
+        except Exception:
+            self._compass_ctk_image = None
+            _has_compass_img = False
+
+        # Outer border frame — colour changes on pass/fail
+        self._compass_img_border = ctk.CTkFrame(
+            tab,
+            corner_radius=12,
+            border_width=2,
+            border_color="#333333",
+            fg_color="#111111",
+        )
+        self._compass_img_border.pack(anchor="w", padx=12, pady=(10, 0))
+
+        if _has_compass_img:
+            self._compass_img_lbl = ctk.CTkLabel(
+                self._compass_img_border,
+                image=self._compass_ctk_image,
+                text="",
+            )
+        else:
+            self._compass_img_lbl = ctk.CTkLabel(
+                self._compass_img_border,
+                text="[compass_cal.png not found]",
+                font=ctk.CTkFont(size=11),
+                text_color="gray",
+            )
+        self._compass_img_lbl.pack(padx=8, pady=8)
+
+        # ── Notification bar (below image) ───────────────────────────────
         self._notif_bar = ctk.CTkFrame(
             tab,
-            corner_radius=8, 
+            corner_radius=8,
             fg_color="transparent",
-            height=0,  # start with zero height so it doesn't take up space until we show a message
+            height=0,
         )
         self._notif_bar.pack(fill="x", padx=12, pady=(14, 0))
-        self._notif_bar.pack_propagate(False)  # prevent the frame from resizing to fit its contents
-        
+        self._notif_bar.pack_propagate(False)
+
         self._notif_icon = ctk.CTkLabel(
             self._notif_bar,
             text="",
             width=24, height=24,
             font=ctk.CTkFont(size=14),
-            fg_color="transparent",  
+            fg_color="transparent",
             anchor="center",
         )
         self._notif_icon.pack(side="left", padx=(10, 8), pady=8)
-        
+
         notif_text_col = ctk.CTkFrame(self._notif_bar, fg_color="transparent")
         notif_text_col.pack(side="left", fill="both", expand=True, pady=8)
-        
+
         self._notif_title = ctk.CTkLabel(
             notif_text_col,
             text="",
@@ -435,7 +479,7 @@ class CalibrationWindow(ctk.CTk):
             anchor="w",
         )
         self._notif_title.pack(anchor="w")
-        
+
         self._notif_sub = ctk.CTkLabel(
             notif_text_col,
             text="",
@@ -443,12 +487,12 @@ class CalibrationWindow(ctk.CTk):
             text_color="gray",
             anchor="w",
         )
-        self._notif_sub.pack(anchor="w")  
+        self._notif_sub.pack(anchor="w")
 
-        # Cancel button + retry button (retry just means "start compass cal again" since it resets progress)
+        # Cancel + retry buttons
         btn_row = ctk.CTkFrame(tab, fg_color="transparent")
         btn_row.pack(anchor="w", padx=12, pady=(16, 4))
-        
+
         self.compass_cancel_btn = ctk.CTkButton(
             tab,
             text="Cancel Compass Cal",
@@ -458,7 +502,7 @@ class CalibrationWindow(ctk.CTk):
             state="disabled",
         )
         self.compass_cancel_btn.pack(side="left", padx=(0, 8))
-        
+
         self.compass_retry_btn = ctk.CTkButton(
             tab,
             text="Retry",
@@ -468,6 +512,7 @@ class CalibrationWindow(ctk.CTk):
         )
         self.compass_retry_btn.pack(side="left", padx=(6, 0))
         self.compass_retry_btn.pack_forget()  # hide retry button by default; only show on failure
+        
 
     # ──────────────────────────────────────────────────────────────────────────
     # RC CALIBRATION TAB
@@ -762,6 +807,8 @@ class CalibrationWindow(ctk.CTk):
             row["status_lbl"].configure(text="idle", text_color=MAG_STATUS_COLORS["idle"])
             self._mag_bar_values[mag_id] = 0.0
         self._active_mag_ids.clear()
+        if hasattr(self, "_compass_img_border"):
+            self._compass_img_border.configure(border_color="#333333")
         self._progress_values["Compass"] = 0
         if self.tabview.get() == "Compass":
             self.progress.set(0)
@@ -788,6 +835,8 @@ class CalibrationWindow(ctk.CTk):
                 row["status_lbl"].configure(text="idle", text_color=MAG_STATUS_COLORS["idle"])
                 self._mag_bar_values[mag_id] = 0.0
             self._active_mag_ids.clear()
+            if hasattr(self, "_compass_img_border"):
+                self._compass_img_border.configure(border_color="#333333")
             self._progress_values["Compass"] = 0
             if self.tabview.get() == "Compass":
                 self.progress.set(0)
@@ -866,6 +915,11 @@ class CalibrationWindow(ctk.CTk):
         else:
             self.compass_retry_btn.pack_forget()
             self.show_notif("success", "Compass Calibration Successful", f"{passed_count} magnetometer(s) passed calibration")
+        # Update compass image border colour
+        if hasattr(self, "_compass_img_border"):
+            border_color = "#e74c3c" if any_failed else "#2ecc71"
+            self._compass_img_border.configure(border_color=border_color)
+            
         for cid, passed in results.items():
             if cid not in self._mag_rows:
                 continue
