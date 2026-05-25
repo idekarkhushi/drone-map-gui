@@ -3,6 +3,9 @@ import tkintermapview
 import tkinter as tk
 import math
 
+from battery import BatteryHandler
+import threading
+
 
 # ═══════════════════════════════════════════════════════════
 #  HUD WIDGET
@@ -695,6 +698,20 @@ class DataPage(ctk.CTkFrame):
         self.map.grid(row=0, column=0, sticky="nsew")
         self.map.set_position(19.0760, 72.8777)
         self.map.set_zoom(12)
+        
+        # Battery handler
+        self.battery_handler = BatteryHandler()
+
+        # Connect to vehicle
+        connected = self.battery_handler.connect(
+            connection_string='udp:127.0.0.1:14552'
+        )
+
+        if connected:
+            self.battery_handler.start()
+
+            # Start UI updater thread
+            self.after(1000, self.update_battery_ui)
 
     # ── scrollable sidebar internals ──────────────────────
     def _on_inner_configure(self, _e):
@@ -728,5 +745,17 @@ class DataPage(ctk.CTkFrame):
             card, unit = self.telem_rows[key]
             card.update(f"{value:.2f}", unit)
 
-    def update_battery(self, voltage: float, percent: float):
-        self.battery.update(voltage, percent)
+    def update_battery_ui(self):
+
+        try:
+            voltage = self.battery_handler.voltage
+            percent = self.battery_handler.battery_remaining
+
+            if voltage is not None and percent is not None:
+                self.update_battery(voltage, percent)
+
+        except Exception as e:
+            print("Battery UI update error:", e)
+
+        # refresh every 1 sec
+        self.after(1000, self.update_battery_ui)
