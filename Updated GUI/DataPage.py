@@ -3,7 +3,8 @@ import tkintermapview
 import tkinter as tk
 import math
 
-from battery import BatteryHandler
+from core.battery import BatteryHandler
+from preflight import PreflightChecker
 import threading
 
 
@@ -659,11 +660,29 @@ class DataPage(ctk.CTkFrame):
         self.hud.grid(row=r, column=0, sticky="ew", padx=6, pady=(2, 6)); r += 1
         _divider(sb, r); r += 1
 
-        # Telemetry
-        _section(sb, "TELEMETRY", r); r += 1
+        # ── Tab view: Telemetry + Messages ────────────────────────
+        _section(sb, "DATA", r); r += 1
 
-        telem_grid = ctk.CTkFrame(sb, fg_color="transparent")
-        telem_grid.grid(row=r, column=0, sticky="ew", padx=6, pady=(2, 4)); r += 1
+        self._tabs = ctk.CTkTabview(sb, height=220, fg_color="#060c14",
+                                    segmented_button_fg_color="#0c1a28",
+                                    segmented_button_selected_color="#1a3a5c",
+                                    segmented_button_selected_hover_color="#1f4870",
+                                    segmented_button_unselected_color="#0c1a28",
+                                    segmented_button_unselected_hover_color="#12243a",
+                                    text_color="#00d4ff",
+                                    text_color_disabled="#3a5a7a",
+                                    corner_radius=8)
+        self._tabs.grid(row=r, column=0, sticky="ew", padx=6, pady=(2, 4)); r += 1
+        self._tabs.add("Telemetry")
+        self._tabs.add("Messages")
+        self._tabs.set("Telemetry")   # default tab
+
+        # ── Telemetry tab contents ────────────────────────────────
+        telem_tab = self._tabs.tab("Telemetry")
+        telem_tab.grid_columnconfigure(0, weight=1)
+
+        telem_grid = ctk.CTkFrame(telem_tab, fg_color="transparent")
+        telem_grid.grid(row=0, column=0, sticky="ew", padx=2, pady=4)
         telem_grid.grid_columnconfigure(0, weight=1)
         telem_grid.grid_columnconfigure(1, weight=1)
 
@@ -681,7 +700,43 @@ class DataPage(ctk.CTkFrame):
             card.grid(row=idx // 2, column=idx % 2, sticky="ew", padx=3, pady=3)
             self.telem_rows[key] = (card, unit)
 
-        _divider(sb, r); r += 1
+        # ── Messages tab contents ─────────────────────────────────
+        msg_tab = self._tabs.tab("Messages")
+        msg_tab.grid_rowconfigure(0, weight=1)
+        msg_tab.grid_columnconfigure(0, weight=1)
+
+        self._msg_box = tk.Text(
+            msg_tab,
+            bg="#060c14", fg="#b0cce0",
+            font=("Courier", 10),
+            relief="flat",
+            state="disabled",
+            wrap="word",
+            highlightthickness=0,
+            insertbackground="#00d4ff",
+            selectbackground="#1a3a5c",
+            height=10
+        )
+        self._msg_box.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+
+        # colour tags for severity levels
+        self._msg_box.tag_config("INFO",  foreground="#7ad4ff")
+        self._msg_box.tag_config("WARN",  foreground="#ffcc44")
+        self._msg_box.tag_config("ERROR", foreground="#ff5555")
+        self._msg_box.tag_config("OK",    foreground="#00d47f")
+        
+        #preflight 
+        run_btn = ctk.CTkButton(
+            msg_tab,
+            text="Run PreFlight Checks",
+            font=("Courier", 12, "bold"),
+            fg_color="#1a3a5c",
+            hover_color="#1f4870",
+            text_color="#00d4ff",
+            height=32,
+            command=self._run_preflight
+        )
+        run_btn.grid(row=1, column=0, sticky="ew", padx=4, pady=(0, 4))
 
         # Battery
         _section(sb, "POWER", r); r += 1
@@ -759,3 +814,35 @@ class DataPage(ctk.CTkFrame):
 
         # refresh every 1 sec
         self.after(1000, self.update_battery_ui)
+        
+    def append_message(self, text: str, level: str = "INFO"):
+        """
+        Append a line to the Messages tab.
+        level: "INFO" | "WARN" | "ERROR" | "OK"
+        """
+        import datetime
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        line = f"[{ts}] {text}\n"
+        self._msg_box.configure(state="normal")
+        self._msg_box.insert("end", line, level.upper())
+        self._msg_box.see("end")
+        self._msg_box.configure(state="disabled")
+        
+    def _run_preflight(self):
+        checker = PreflightChecker(
+            connection_string="udp:127.0.0.1:14550",
+            on_message=self.append_message       # passes results straight to the log
+        )
+        checker.run()                            # non-blocking
+
+    def append_message(self, text: str, level: str = "INFO"):
+        import datetime
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        line = f"[{ts}] {text}\n"
+        self.after(0, self._insert_message, line, level.upper())
+
+    def _insert_message(self, line: str, level: str):
+        self._msg_box.configure(state="normal")
+        self._msg_box.insert("end", line, level)
+        self._msg_box.see("end")
+        self._msg_box.configure(state="disabled")

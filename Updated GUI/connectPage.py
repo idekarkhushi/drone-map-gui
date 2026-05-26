@@ -384,7 +384,7 @@ class ConnectPanel:
         self._lbl(parent, "Baud Rate").grid(
             row=1, column=0, sticky="w", padx=(10, 6), pady=6)
         self.baud_combo = ctk.CTkComboBox(
-            parent, values=["9600", "19200", "38400", "57600", "115200"],
+            parent, values=["9600", "19200", "38400", "57600", "115200", "921600"],
             width=140, height=30,
             fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#0c1a4e",
             text_color=TEXT_MAIN, dropdown_fg_color=BG_INNER,

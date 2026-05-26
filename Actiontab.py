@@ -343,42 +343,20 @@ class ActionsTab(ctk.CTkFrame):
 
     # ── CHECK DISARM RESULT ─────────────────────────────────────
     def _check_disarm_result(self):
-
         try:
-
-            msg = self.mav.recv_match(
-                type="COMMAND_ACK",
-                blocking=True,
-                timeout=3
-            )
+            msg = self.mav.recv_match(type="COMMAND_ACK",blocking=True,timeout=3)
 
             # success
             if msg and msg.result == 0:
-
                 self._armed = False
-
-                self.after(
-                    0,
-                    lambda: self._apply_arm_state(False)
-                )
-
+                self.after(0,lambda: self._apply_arm_state(False))
                 return
 
             # failed -> show force disarm popup
-            self.after(
-                0,
-                self._show_force_disarm_popup
-            )
+            self.after(0,self._show_force_disarm_popup)
 
         except Exception as e:
-
-            self.after(
-                0,
-                lambda err=e: self._log(
-                    f"Disarm error: {err}",
-                    "err"
-                )
-            )
+            self.after(0,lambda err=e: self._log(f"Disarm error: {err}","err"))
 
 
     # ── FORCE DISARM POPUP ──────────────────────────────────────

@@ -5,10 +5,12 @@ import customtkinter as ctk
 from PIL import Image, ImageTk
 import cv2
 
-# Ensure local GUI modules can be imported when running this file directly
+# Ensure local GUI modules and project packages can be imported when running this file directly
 base_dir = os.path.dirname(os.path.abspath(__file__))
-if base_dir not in sys.path:
-    sys.path.insert(0, base_dir)
+project_root = os.path.dirname(base_dir)
+for path in (base_dir, project_root):
+    if path not in sys.path:
+        sys.path.insert(0, path)
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
