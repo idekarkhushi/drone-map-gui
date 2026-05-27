@@ -34,17 +34,17 @@ MODE_WIFI      = "WiFi"
  
 # ── Palette — navy / black / grey / white ────────────────────────────────────
 ACCENT       = "#ffffff"       # white — primary text / active highlights
-ACCENT_GREEN = "#4caf7d"       # muted green for connected state
-ACCENT_RED   = "#e05555"       # red for errors / disconnect
+ACCENT_GREEN = "#27af44"       # muted green for connected state
+ACCENT_RED   = "#dd3b3b"       # red for errors / disconnect
 ACCENT_WARN  = "#e0a020"       # amber for warnings / scanning
 BG_PANEL     = "#080d1a"       # near-black window background
-BG_CARD      = "#0c1a4e"       # navy — card / tab content background
+BG_CARD      = "#16386B"       # navy — card / tab content background
 BG_INNER     = "#111827"       # dark grey — input fields, inner frames
-BG_ROW_SEL   = "#1a2e6e"       # brighter navy — selected row highlight
-BORDER_CLR   = "#1e2d5a"       # subtle navy border
+BG_ROW_SEL   = "#395886"       # brighter navy — selected row highlight
+BORDER_CLR   = "#628ECB"       # subtle navy border
 TEXT_MAIN    = "#ffffff"        # white — all primary labels
-TEXT_SUB     = "#8a9bbf"        # grey-blue — secondary / description text
-BTN_ACTIVE   = "#1a2e6e"        # navy button active state
+TEXT_SUB     = "#B1C9EF"        # grey-blue — secondary / description text
+BTN_ACTIVE   = "#395886"        # navy button active state
  
  
 # ─────────────────────────────────────────────────────────────────────────────
@@ -298,11 +298,11 @@ class ConnectPanel:
         self._window = win
  
         # Header
-        header = ctk.CTkFrame(win, fg_color="#0c1a4e", corner_radius=0, height=40)
+        header = ctk.CTkFrame(win, fg_color="#395886", corner_radius=0, height=40)
         header.pack(fill="x")
         header.pack_propagate(False)
         ctk.CTkLabel(
-            header, text="⚡  CONNECTION SETTINGS",
+            header, text="CONNECTION SETTINGS",
             font=ctk.CTkFont("Courier", 13, weight="bold"),
             text_color=TEXT_MAIN
         ).pack(side="left", padx=14, pady=8)
@@ -325,11 +325,11 @@ class ConnectPanel:
         self.tabview = ctk.CTkTabview(
             win,
             fg_color=BG_CARD,
-            segmented_button_fg_color="#0a1030",
-            segmented_button_selected_color="#0c1a4e",
-            segmented_button_selected_hover_color="#1a2e6e",
-            segmented_button_unselected_color="#0a1030",
-            segmented_button_unselected_hover_color="#111827",
+            segmented_button_fg_color="#2C4468",
+            segmented_button_selected_color="#395886",
+            segmented_button_selected_hover_color="#3E6196",
+            segmented_button_unselected_color="#243E64",
+            segmented_button_unselected_hover_color="#1A2744",
             text_color=TEXT_MAIN,
             border_color=BORDER_CLR,
             border_width=1,
@@ -348,7 +348,7 @@ class ConnectPanel:
         self.connect_btn = ctk.CTkButton(
             win, text="CONNECT", height=36,
             font=ctk.CTkFont("Courier", 13, weight="bold"),
-            fg_color="#0c1a4e", hover_color="#1a2e6e", text_color=TEXT_MAIN,
+            fg_color="#395886", hover_color="#628ECB", text_color=TEXT_MAIN,
             border_width=1, border_color=BORDER_CLR,
             corner_radius=8, command=self._on_connect_click,
         )
@@ -366,7 +366,7 @@ class ConnectPanel:
         pv = self._scan_serial_ports()
         self.com_port_combo = ctk.CTkComboBox(
             parent, values=pv, width=230, height=30,
-            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#0c1a4e",
+            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#395886",
             text_color=TEXT_MAIN, dropdown_fg_color=BG_INNER,
             dropdown_text_color=TEXT_MAIN, dropdown_hover_color=BG_ROW_SEL,
             command=self._on_port_selected,
@@ -376,7 +376,7 @@ class ConnectPanel:
  
         ctk.CTkButton(
             parent, text="↻", width=34, height=30,
-            fg_color=BG_INNER, hover_color="#0c1a4e", text_color=TEXT_MAIN,
+            fg_color=BG_INNER, hover_color="#395886", text_color=TEXT_MAIN,
             font=ctk.CTkFont(size=15),
             command=self.refresh_com_ports
         ).grid(row=0, column=2, pady=(14, 6))
@@ -386,7 +386,7 @@ class ConnectPanel:
         self.baud_combo = ctk.CTkComboBox(
             parent, values=["9600", "19200", "38400", "57600", "115200", "921600"],
             width=140, height=30,
-            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#0c1a4e",
+            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#395886",
             text_color=TEXT_MAIN, dropdown_fg_color=BG_INNER,
             dropdown_text_color=TEXT_MAIN, dropdown_hover_color=BG_ROW_SEL,
         )
@@ -412,7 +412,7 @@ class ConnectPanel:
  
         ctk.CTkButton(
             tb, text="⟳  SCAN", width=90, height=28,
-            fg_color="#0c1a4e", hover_color=BG_ROW_SEL, text_color=TEXT_MAIN,
+            fg_color="#0c1a28", hover_color=BG_ROW_SEL, text_color=TEXT_MAIN,
             font=ctk.CTkFont("Courier", 11, weight="bold"),
             command=self._scan_bluetooth_devices
         ).pack(side="left", padx=(0, 8))
@@ -421,7 +421,7 @@ class ConnectPanel:
         self.bt_baud_combo = ctk.CTkComboBox(
             tb, values=["9600", "19200", "38400", "57600", "115200"],
             width=110, height=28,
-            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#0c1a4e",
+            fg_color=BG_INNER, border_color=BORDER_CLR, button_color="#0c1a28",
             text_color=TEXT_MAIN, dropdown_fg_color=BG_INNER,
             dropdown_text_color=TEXT_MAIN, dropdown_hover_color=BG_ROW_SEL,
         )
@@ -543,7 +543,7 @@ class ConnectPanel:
             if i == idx:
                 card.configure(fg_color=BG_ROW_SEL, border_color="#3a5aaa")
                 card._sel_btn.configure(text="✔ SELECTED",
-                                        fg_color="#0c1a4e", text_color=TEXT_MAIN,
+                                        fg_color="#050677", text_color=TEXT_MAIN,
                                         border_color="#3a5aaa")
             else:
                 card.configure(fg_color=BG_CARD, border_color=BORDER_CLR)
@@ -703,7 +703,7 @@ class ConnectPanel:
             if i == idx:
                 card.configure(fg_color=BG_ROW_SEL, border_color="#3a5aaa")
                 card._sel_btn.configure(text="✔ SELECTED",
-                                        fg_color="#0c1a4e", text_color=TEXT_MAIN,
+                                        fg_color="#050677", text_color=TEXT_MAIN,
                                         border_color="#3a5aaa")
             else:
                 card.configure(fg_color=BG_CARD, border_color=BORDER_CLR)
@@ -936,9 +936,21 @@ class ConnectPanel:
                     self.last_heartbeat = time.time()
             except Exception:
                 time.sleep(0.1)
+
+    def _refresh_cached_heartbeat_time(self):
+        if self.serial_conn is None:
+            return
+        try:
+            heartbeat = getattr(self.serial_conn, "messages", {}).get("HEARTBEAT")
+            timestamp = getattr(heartbeat, "_timestamp", None)
+            if timestamp and (self.last_heartbeat is None or timestamp > self.last_heartbeat):
+                self.last_heartbeat = timestamp
+        except Exception:
+            pass
  
     def _heartbeat_watchdog(self):
         while self.is_connected():
+            self._refresh_cached_heartbeat_time()
             if (self.last_heartbeat is not None and
                     (time.time() - self.last_heartbeat) > self.heartbeat_timeout):
                 self.master.after(0, lambda: messagebox.showwarning(

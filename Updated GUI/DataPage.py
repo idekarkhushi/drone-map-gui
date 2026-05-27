@@ -4,7 +4,10 @@ import tkinter as tk
 import math
 
 from core.battery import BatteryHandler
+
+from Hud_core import HUDRenderer, HUDState
 from preflight import PreflightChecker
+
 import threading
 
 
@@ -24,19 +27,13 @@ class HUDWidget(tk.Canvas):
             **kw
         )
 
-        # telemetry
-        self.pitch = 0.0
-        self.roll = 0.0
-        self.heading = 0
-        self.airspeed = 0.0
-        self.altitude = 0.0
-        self.vspeed = 0.0
-
         self._W = 230
         self._H = 180
-
         self.configure(width=self._W, height=self._H)
-
+ 
+        # All telemetry lives here – set any field directly
+        self.state = HUDState()
+ 
         self._draw()
 
     # ======================================================
@@ -56,482 +53,165 @@ class HUDWidget(tk.Canvas):
 
         self.configure(width=w, height=h)
 
-        self._redraw_all()
-
-    # ======================================================
-    # Public update
-    # ======================================================
-
-    def redraw(
-        self,
-        pitch=0.0,
-        roll=0.0,
-        heading=0,
-        airspeed=0.0,
-        altitude=0.0,
-        vspeed=0.0
-    ):
-
-        self.pitch = pitch
-        self.roll = roll
-        self.heading = heading
-        self.airspeed = airspeed
-        self.altitude = altitude
-        self.vspeed = vspeed
-
-        self._redraw_all()
-
-    # ======================================================
-    # Helpers
-    # ======================================================
-
-    @property
-    def cx(self):
-        return self._W // 2
-
-    @property
-    def cy(self):
-        return self._H // 2
-
-    @property
-    def tape_w(self):
-        return int(self._W * 0.13)
-
-    @property
-    def heading_h(self):
-        return int(self._H * 0.12)
-
-    def _redraw_all(self):
-        self.delete("all")
         self._draw()
 
-    # ======================================================
-    # Main draw
-    # ======================================================
-
+    # ----------------------------------------------------------
+    # Public update – accepts the same kwargs as before PLUS
+    # any HUDState field for the extended telemetry.
+    # ----------------------------------------------------------
+    def redraw(
+        self,
+        pitch: float        = None,
+        roll: float         = None,
+        heading: float      = None,
+        airspeed: float     = None,
+        altitude: float     = None,
+        vspeed: float       = None,
+        # ── extended fields ───────────────────────────────────
+        groundspeed: float  = None,
+        targetspeed: float  = None,
+        targetalt: float    = None,
+        targetheading: float = None,
+        groundcourse: float = None,
+        groundalt: float    = None,
+        verticalspeed: float = None,
+        batterylevel: float = None,
+        batteryremaining: float = None,
+        current: float      = None,
+        batterylevel2: float = None,
+        batteryremaining2: float = None,
+        current2: float     = None,
+        batterycellcount: int = None,
+        lowvoltagealert: bool = None,
+        criticalvoltagealert: bool = None,
+        gpsfix: float       = None,
+        gpshdop: float      = None,
+        gpsfix2: float      = None,
+        gpshdop2: float     = None,
+        xtrack_error: float = None,
+        turnrate: float     = None,
+        disttowp: float     = None,
+        wpno: int           = None,
+        mode: str           = None,
+        linkqualitygcs: float = None,
+        vibex: float        = None,
+        vibey: float        = None,
+        vibez: float        = None,
+        ekfstatus: float    = None,
+        prearmstatus: bool  = None,
+        status: bool        = None,
+        safetyactive: bool  = None,
+        failsafe: bool      = None,
+        connected: bool     = None,
+        load: float         = None,
+        message: str        = None,
+        message_color: str  = None,
+        lowairspeed: bool   = None,
+        lowgroundspeed: bool = None,
+        AOA: float          = None,
+        SSA: float          = None,
+        distunit: str       = None,
+        speedunit: str      = None,
+        altunit: str        = None,
+        # display toggles
+        displayheading: bool   = None,
+        displayspeed: bool     = None,
+        displayalt: bool       = None,
+        displayconninfo: bool  = None,
+        displayxtrack: bool    = None,
+        displayrollpitch: bool = None,
+        displaygps: bool       = None,
+        bgon: bool             = None,
+        batteryon: bool        = None,
+        batteryon2: bool       = None,
+        displayekf: bool       = None,
+        displayvibe: bool      = None,
+        displayprearm: bool    = None,
+        displayAOASSA: bool    = None,
+        displayCellVoltage: bool = None,
+    ):
+        s = self.state
+ 
+        # ── attitude ──────────────────────────────────────────
+        if pitch        is not None: s.pitch        = pitch
+        if roll         is not None: s.roll         = roll
+        if heading      is not None: s.heading      = float(heading)
+        # legacy alias: altitude → alt
+        if altitude     is not None: s.alt          = altitude
+        # legacy alias: vspeed → verticalspeed
+        if vspeed       is not None: s.verticalspeed = vspeed
+ 
+        # ── extended ──────────────────────────────────────────
+        if airspeed          is not None: s.airspeed          = airspeed
+        if groundspeed       is not None: s.groundspeed       = groundspeed
+        if targetspeed       is not None: s.targetspeed       = targetspeed
+        if targetalt         is not None: s.targetalt         = targetalt
+        if targetheading     is not None: s.targetheading     = targetheading
+        if groundcourse      is not None: s.groundcourse      = groundcourse
+        if groundalt         is not None: s.groundalt         = groundalt
+        if verticalspeed     is not None: s.verticalspeed     = verticalspeed
+        if batterylevel      is not None: s.batterylevel      = batterylevel
+        if batteryremaining  is not None: s.batteryremaining  = batteryremaining
+        if current           is not None: s.current           = current
+        if batterylevel2     is not None: s.batterylevel2     = batterylevel2
+        if batteryremaining2 is not None: s.batteryremaining2 = batteryremaining2
+        if current2          is not None: s.current2          = current2
+        if batterycellcount  is not None: s.batterycellcount  = batterycellcount
+        if lowvoltagealert   is not None: s.lowvoltagealert   = lowvoltagealert
+        if criticalvoltagealert is not None: s.criticalvoltagealert = criticalvoltagealert
+        if gpsfix            is not None: s.gpsfix            = gpsfix
+        if gpshdop           is not None: s.gpshdop           = gpshdop
+        if gpsfix2           is not None: s.gpsfix2           = gpsfix2
+        if gpshdop2          is not None: s.gpshdop2          = gpshdop2
+        if xtrack_error      is not None: s.xtrack_error      = xtrack_error
+        if turnrate          is not None: s.turnrate          = turnrate
+        if disttowp          is not None: s.disttowp          = disttowp
+        if wpno              is not None: s.wpno              = wpno
+        if mode              is not None: s.set_mode(mode)
+        if linkqualitygcs    is not None: s.linkqualitygcs    = linkqualitygcs
+        if vibex             is not None: s.vibex             = vibex
+        if vibey             is not None: s.vibey             = vibey
+        if vibez             is not None: s.vibez             = vibez
+        if ekfstatus         is not None: s.ekfstatus         = ekfstatus
+        if prearmstatus      is not None: s.prearmstatus      = prearmstatus
+        if status            is not None: s.status            = status
+        if safetyactive      is not None: s.safetyactive      = safetyactive
+        if failsafe          is not None: s.failsafe          = failsafe
+        if connected         is not None: s.connected         = connected
+        if load              is not None: s.load              = load
+        if message           is not None: s.message           = message
+        if message_color     is not None: s.message_color     = message_color
+        if lowairspeed       is not None: s.lowairspeed       = lowairspeed
+        if lowgroundspeed    is not None: s.lowgroundspeed    = lowgroundspeed
+        if AOA               is not None: s.AOA               = AOA
+        if SSA               is not None: s.SSA               = SSA
+        if distunit          is not None: s.distunit          = distunit
+        if speedunit         is not None: s.speedunit         = speedunit
+        if altunit           is not None: s.altunit           = altunit
+        # toggles
+        if displayheading    is not None: s.displayheading    = displayheading
+        if displayspeed      is not None: s.displayspeed      = displayspeed
+        if displayalt        is not None: s.displayalt        = displayalt
+        if displayconninfo   is not None: s.displayconninfo   = displayconninfo
+        if displayxtrack     is not None: s.displayxtrack     = displayxtrack
+        if displayrollpitch  is not None: s.displayrollpitch  = displayrollpitch
+        if displaygps        is not None: s.displaygps        = displaygps
+        if bgon              is not None: s.bgon              = bgon
+        if batteryon         is not None: s.batteryon         = batteryon
+        if batteryon2        is not None: s.batteryon2        = batteryon2
+        if displayekf        is not None: s.displayekf        = displayekf
+        if displayvibe       is not None: s.displayvibe       = displayvibe
+        if displayprearm     is not None: s.displayprearm     = displayprearm
+        if displayAOASSA     is not None: s.displayAOASSA     = displayAOASSA
+        if displayCellVoltage is not None: s.displayCellVoltage = displayCellVoltage
+ 
+        self._draw()
+        
+    # ----------------------------------------------------------
+    # Internal
+    # ----------------------------------------------------------
     def _draw(self):
-
-        self._draw_horizon()
-        self._draw_pitch_ladder()
-        self._draw_roll_scale()
-        self._draw_heading_tape()
-        self._draw_speed_tape()
-        self._draw_altitude_tape()
-        self._draw_flight_path_marker()
-        self._draw_crosshair()
-
-    # ======================================================
-    # Artificial Horizon
-    # ======================================================
-
-    def _draw_horizon(self):
-
-        w = self._W
-        h = self._H
-
-        cx = self.cx
-        cy = self.cy
-
-        pitch_scale = h / 60
-        pitch_offset = self.pitch * pitch_scale
-
-        angle = math.radians(self.roll)
-
-        length = w * 3
-
-        x1 = -length
-        y1 = pitch_offset
-
-        x2 = length
-        y2 = pitch_offset
-
-        rx1 = x1 * math.cos(angle) - y1 * math.sin(angle)
-        ry1 = x1 * math.sin(angle) + y1 * math.cos(angle)
-
-        rx2 = x2 * math.cos(angle) - y2 * math.sin(angle)
-        ry2 = x2 * math.sin(angle) + y2 * math.cos(angle)
-
-        # SKY
-        self.create_polygon(
-            0, 0,
-            w, 0,
-            cx + rx2, cy + ry2,
-            cx + rx1, cy + ry1,
-            fill="#1f4f88",
-            outline=""
-        )
-
-        # GROUND
-        self.create_polygon(
-            0, h,
-            w, h,
-            cx + rx2, cy + ry2,
-            cx + rx1, cy + ry1,
-            fill="#586d0b",
-            outline=""
-        )
-
-        # Horizon line
-        self.create_line(
-            cx + rx1,
-            cy + ry1,
-            cx + rx2,
-            cy + ry2,
-            fill="#00d4ff",
-            width=2
-        )
-
-    # ======================================================
-    # Pitch Ladder
-    # ======================================================
-
-    def _draw_pitch_ladder(self):
-
-        cx = self.cx
-        cy = self.cy
-
-        angle = math.radians(self.roll)
-
-        scale = self._H / 60
-
-        for deg in range(-30, 35, 5):
-
-            if deg == 0:
-                continue
-
-            offset = (deg - self.pitch) * scale
-
-            center_x = cx + offset * math.sin(angle)
-            center_y = cy + offset * math.cos(angle)
-
-            line_w = self._W * 0.12 if deg % 10 == 0 else self._W * 0.07
-
-            dx = math.cos(angle) * line_w
-            dy = -math.sin(angle) * line_w
-
-            color = "#00d4ff" if deg % 10 == 0 else "#4f90aa"
-
-            self.create_line(
-                center_x - dx,
-                center_y - dy,
-                center_x + dx,
-                center_y + dy,
-                fill=color,
-                width=2
-            )
-
-            if deg % 10 == 0:
-
-                self.create_text(
-                    center_x - dx - 12,
-                    center_y,
-                    text=str(abs(deg)),
-                    fill="#00d4ff",
-                    font=("Courier", 10, "bold")
-                )
-
-                self.create_text(
-                    center_x + dx + 12,
-                    center_y,
-                    text=str(abs(deg)),
-                    fill="#00d4ff",
-                    font=("Courier", 10, "bold")
-                )
-
-    # ======================================================
-    # Roll Scale
-    # ======================================================
-
-    def _draw_roll_scale(self):
-
-        cx = self.cx
-        cy = self.cy
-
-        r = int(min(self._W, self._H) * 0.38)
-
-        self.create_arc(
-            cx - r,
-            cy - r,
-            cx + r,
-            cy + r,
-            start=30,
-            extent=120,
-            style="arc",
-            outline="#4d87aa",
-            width=2
-        )
-
-        for deg in [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]:
-
-            a = math.radians(90 - deg)
-
-            inner = r - 12 if deg % 30 == 0 else r - 7
-
-            x1 = cx + inner * math.cos(a)
-            y1 = cy - inner * math.sin(a)
-
-            x2 = cx + r * math.cos(a)
-            y2 = cy - r * math.sin(a)
-
-            self.create_line(
-                x1,
-                y1,
-                x2,
-                y2,
-                fill="#00d4ff" if deg == 0 else "#4d87aa",
-                width=2
-            )
-
-        # Roll pointer
-
-        roll_a = math.radians(90 - self.roll)
-
-        tip_x = cx + r * math.cos(roll_a)
-        tip_y = cy - r * math.sin(roll_a)
-
-        base_x = cx + (r - 14) * math.cos(roll_a)
-        base_y = cy - (r - 14) * math.sin(roll_a)
-
-        perp = math.radians(180 - self.roll)
-
-        w = 7
-
-        self.create_polygon(
-            tip_x,
-            tip_y,
-
-            base_x + w * math.cos(perp),
-            base_y - w * math.sin(perp),
-
-            base_x - w * math.cos(perp),
-            base_y + w * math.sin(perp),
-
-            fill="#00d4ff",
-            outline=""
-        )
-
-    # ======================================================
-    # Crosshair
-    # ======================================================
-
-    def _draw_crosshair(self):
-
-        cx = self.cx
-        cy = self.cy
-
-        wing = int(self._W * 0.13)
-
-        gap = 12
-
-        self.create_line(
-            cx - wing,
-            cy,
-            cx - gap,
-            cy,
-            fill="#00d4ff",
-            width=3
-        )
-
-        self.create_line(
-            cx + gap,
-            cy,
-            cx + wing,
-            cy,
-            fill="#00d4ff",
-            width=3
-        )
-
-        self.create_line(
-            cx,
-            cy + 5,
-            cx,
-            cy + 22,
-            fill="#00d4ff",
-            width=3
-        )
-
-        self.create_oval(
-            cx - 3,
-            cy - 3,
-            cx + 3,
-            cy + 3,
-            fill="#00d4ff",
-            outline=""
-        )
-
-    # ======================================================
-    # Flight Path Marker
-    # ======================================================
-
-    def _draw_flight_path_marker(self):
-
-        cx = self.cx
-        cy = self.cy
-
-        x = cx
-        y = cy - self.vspeed * 4
-
-        r = 10
-
-        self.create_oval(
-            x - r,
-            y - r,
-            x + r,
-            y + r,
-            outline="#00ff88",
-            width=2
-        )
-
-        self.create_line(x - 18, y, x - 8, y,
-                         fill="#00ff88", width=2)
-
-        self.create_line(x + 8, y, x + 18, y,
-                         fill="#00ff88", width=2)
-
-        self.create_line(x, y - 18, x, y - 8,
-                         fill="#00ff88", width=2)
-
-    # ======================================================
-    # Speed Tape
-    # ======================================================
-
-    def _draw_speed_tape(self):
-
-        w = self.tape_w
-        h = self._H
-
-        x0 = 0
-        x1 = w
-
-        self.create_rectangle(
-            x0,
-            0,
-            x1,
-            h,
-            fill="#09131d",
-            outline="#1f3d55"
-        )
-
-        self.create_text(
-            w // 2,
-            h // 2,
-            text=f"{self.airspeed:.1f}",
-            fill="#ffffff",
-            font=("Courier", 15, "bold")
-        )
-
-        self.create_text(
-            w // 2,
-            16,
-            text="SPD",
-            fill="#00d4ff",
-            font=("Courier", 10, "bold")
-        )
-
-    # ======================================================
-    # Altitude Tape
-    # ======================================================
-
-    def _draw_altitude_tape(self):
-
-        w = self.tape_w
-        h = self._H
-
-        x0 = self._W - w
-        x1 = self._W
-
-        self.create_rectangle(
-            x0,
-            0,
-            x1,
-            h,
-            fill="#09131d",
-            outline="#1f3d55"
-        )
-
-        self.create_text(
-            (x0 + x1) // 2,
-            h // 2,
-            text=f"{self.altitude:.1f}",
-            fill="#ffffff",
-            font=("Courier", 15, "bold")
-        )
-
-        self.create_text(
-            (x0 + x1) // 2,
-            16,
-            text="ALT",
-            fill="#00d4ff",
-            font=("Courier", 10, "bold")
-        )
-
-    # ======================================================
-    # Heading Tape
-    # ======================================================
-
-    def _draw_heading_tape(self):
-
-        w = self._W
-        h = self.heading_h
-
-        y0 = self._H - h
-        y1 = self._H
-
-        self.create_rectangle(
-            self.tape_w,
-            y0,
-            w - self.tape_w,
-            y1,
-            fill="#09131d",
-            outline="#1f3d55"
-        )
-
-        cx = self.cx
-
-        spacing = 22
-
-        for i in range(-5, 6):
-
-            hdg = (self.heading + i * 5) % 360
-
-            x = cx + i * spacing
-
-            self.create_line(
-                x,
-                y0 + 2,
-                x,
-                y0 + 10,
-                fill="#4f90aa"
-            )
-
-            if hdg % 10 == 0:
-
-                self.create_text(
-                    x,
-                    y1 - 10,
-                    text=f"{hdg:03d}",
-                    fill="#7ad4ff",
-                    font=("Courier", 9)
-                )
-
-        self.create_polygon(
-            cx - 6,
-            y0 + 2,
-            cx + 6,
-            y0 + 2,
-            cx,
-            y0 + 10,
-            fill="#00d4ff"
-        )
-
-        self.create_text(
-            cx,
-            y1 - 10,
-            text=f"{self.heading:03d}°",
-            fill="#ffffff",
-            font=("Courier", 10, "bold")
-        )
-
+        HUDRenderer.render(self, self.state, self._W, self._H)
 
 # ═══════════════════════════════════════════════════════════
 #  TELEMETRY CARD  (2-column grid)
@@ -756,17 +436,82 @@ class DataPage(ctk.CTkFrame):
         
         # Battery handler
         self.battery_handler = BatteryHandler()
+        self.after(1000, self.update_battery_ui)
+        
+        self._mav_conn = None
+        self.after(100, self._telemetry_tick)
 
-        # Connect to vehicle
-        connected = self.battery_handler.connect(
-            connection_string='udp:127.0.0.1:14552'
-        )
+        def set_connection(self, conn, mode=None, description=""):
+            self._mav_conn = conn          # store the connection
+            if self.battery_handler.attach_connection(conn):
+                self.battery_handler.start()
+                source = f"{mode} connection" if mode else "connection"
+                self.append_message(f"Battery monitor attached to {source}", "OK")
 
-        if connected:
-            self.battery_handler.start()
+        def clear_connection(self):
+            self._mav_conn = None
+            self.battery_handler.disconnect()
+            self.append_message("Battery monitor disconnected", "INFO")
 
-            # Start UI updater thread
-            self.after(1000, self.update_battery_ui)
+        def _telemetry_tick(self):
+            """Poll MAVLink messages and push to HUD. Runs every 50 ms on main thread."""
+            if self._mav_conn is not None:
+                try:
+                    # Non-blocking: grab up to 10 messages per tick
+                    for _ in range(10):
+                        msg = self._mav_conn.recv_match(blocking=False)
+                        if msg is None:
+                            break
+                        mtype = msg.get_type()
+
+                        if mtype == "ATTITUDE":
+                            self.hud.redraw(
+                                pitch   = math.degrees(msg.pitch),
+                                roll    = math.degrees(msg.roll),
+                                heading = math.degrees(msg.yaw) % 360,
+                            )
+
+                        elif mtype == "VFR_HUD":
+                            self.hud.redraw(
+                                airspeed    = msg.airspeed,
+                                altitude    = msg.alt,
+                                vspeed      = msg.climb,
+                                groundspeed = msg.groundspeed,
+                                heading     = msg.heading,
+                            )
+
+                        elif mtype == "GPS_RAW_INT":
+                            self.hud.redraw(gpsfix=msg.fix_type)
+
+                        elif mtype == "SYS_STATUS":
+                            self.hud.redraw(
+                                batterylevel    = msg.voltage_battery / 1000.0,
+                                current         = msg.current_battery / 100.0,
+                                batteryremaining= msg.battery_remaining,
+                            )
+
+                        elif mtype == "HEARTBEAT":
+                            from pymavlink import mavutil
+                            armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                            self.hud.redraw(status=armed)
+
+                        elif mtype == "GLOBAL_POSITION_INT":
+                            self.update_telemetry("ALT", msg.relative_alt / 1000.0)
+                            self.update_telemetry("VS",  msg.vz / 100.0)
+
+                        elif mtype == "NAV_CONTROLLER_OUTPUT":
+                            self.hud.redraw(
+                                xtrack_error = msg.xtrack_error,
+                                targetheading= msg.target_bearing,
+                                disttowp     = msg.wp_dist,
+                            )
+                            self.update_telemetry("WP", msg.wp_dist)
+
+                except Exception as e:
+                    print(f"Telemetry tick error: {e}")
+
+            self.after(50, self._telemetry_tick)
+
 
     # ── scrollable sidebar internals ──────────────────────
     def _on_inner_configure(self, _e):
@@ -791,14 +536,80 @@ class DataPage(ctk.CTkFrame):
 
     # ── public update API ─────────────────────────────────
     def update_hud(self, pitch=0.0, roll=0.0, heading=0,
-                   airspeed=0.0, altitude=0.0, vspeed=0.0):
+                   airspeed=0.0, altitude=0.0, vspeed=0.0, **extra):
         self.hud.redraw(pitch=pitch, roll=roll, heading=heading,
-                        airspeed=airspeed, altitude=altitude, vspeed=vspeed)
+                        airspeed=airspeed, altitude=altitude, vspeed=vspeed, **extra)
 
     def update_telemetry(self, key: str, value: float):
         if key in self.telem_rows:
             card, unit = self.telem_rows[key]
             card.update(f"{value:.2f}", unit)
+
+    def set_connection(self, conn, mode=None, description=""):
+        self._mav_conn = conn
+        if self.battery_handler.attach_connection(conn):
+            self.battery_handler.start()
+            source = f"{mode} connection" if mode else "connection"
+            self.append_message(f"Battery monitor attached to {source}", "OK")
+
+    def clear_connection(self):
+        self._mav_conn = None
+        self.battery_handler.disconnect()
+        self.append_message("Battery monitor disconnected", "INFO")
+        
+    def _telemetry_tick(self):
+        if self._mav_conn is not None:
+            try:
+                for _ in range(10):
+                    msg = self._mav_conn.recv_match(blocking=False)
+                    if msg is None:
+                        break
+                    mtype = msg.get_type()
+
+                    if mtype == "ATTITUDE":
+                        self.hud.redraw(
+                            pitch   = math.degrees(msg.pitch),
+                            roll    = math.degrees(msg.roll),
+                            heading = math.degrees(msg.yaw) % 360,
+                        )
+                    elif mtype == "VFR_HUD":
+                        self.hud.redraw(
+                            airspeed    = msg.airspeed,
+                            altitude    = msg.alt,
+                            vspeed      = msg.climb,
+                            groundspeed = msg.groundspeed,
+                            heading     = msg.heading,
+                        )
+                    elif mtype == "GPS_RAW_INT":
+                        self.hud.redraw(gpsfix=msg.fix_type)
+
+                    elif mtype == "SYS_STATUS":
+                        self.hud.redraw(
+                            batterylevel     = msg.voltage_battery / 1000.0,
+                            current          = msg.current_battery / 100.0,
+                            batteryremaining = msg.battery_remaining,
+                        )
+                    elif mtype == "HEARTBEAT":
+                        from pymavlink import mavutil
+                        armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
+                        self.hud.redraw(status=armed)
+
+                    elif mtype == "GLOBAL_POSITION_INT":
+                        self.update_telemetry("ALT", msg.relative_alt / 1000.0)
+                        self.update_telemetry("VS",  msg.vz / 100.0)
+
+                    elif mtype == "NAV_CONTROLLER_OUTPUT":
+                        self.hud.redraw(
+                            xtrack_error  = msg.xtrack_error,
+                            targetheading = msg.target_bearing,
+                            disttowp      = msg.wp_dist,
+                        )
+                        self.update_telemetry("WP", msg.wp_dist)
+
+            except Exception as e:
+                print(f"Telemetry tick error: {e}")
+
+        self.after(50, self._telemetry_tick)
 
     def update_battery_ui(self):
 
@@ -807,7 +618,7 @@ class DataPage(ctk.CTkFrame):
             percent = self.battery_handler.battery_remaining
 
             if voltage is not None and percent is not None:
-                self.update_battery(voltage, percent)
+                self.battery.update(voltage, percent)
 
         except Exception as e:
             print("Battery UI update error:", e)

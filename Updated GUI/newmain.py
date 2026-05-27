@@ -174,7 +174,7 @@ class App(ctk.CTk):
             self,
             on_connected=self._on_connected,
             on_disconnected=self._on_disconnected,
-            heartbeat_timeout=5,
+            heartbeat_timeout=15,
         )
 
         self.show("data")
@@ -189,12 +189,16 @@ class App(ctk.CTk):
         self.conn_status_label.configure(
             text=f"● {description}", text_color="#81c784"
         )
-        # Forward conn to pages that need telemetry, e.g.:
-        # self.frames["data"].set_connection(conn)
+        data_page = self.frames.get("data")
+        if data_page and hasattr(data_page, "set_connection"):
+            data_page.set_connection(conn, mode, description)
 
     def _on_disconnected(self):
         """Called by ConnectPanel when the link drops."""
         self.conn_status_label.configure(text="No connection", text_color="gray")
+        data_page = self.frames.get("data")
+        if data_page and hasattr(data_page, "clear_connection"):
+            data_page.clear_connection()
 
     # ── Toolbar & navigation ──────────────────────────────────────────────
 
