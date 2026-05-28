@@ -441,78 +441,6 @@ class DataPage(ctk.CTkFrame):
         self._mav_conn = None
         self.after(100, self._telemetry_tick)
 
-        def set_connection(self, conn, mode=None, description=""):
-            self._mav_conn = conn          # store the connection
-            if self.battery_handler.attach_connection(conn):
-                self.battery_handler.start()
-                source = f"{mode} connection" if mode else "connection"
-                self.append_message(f"Battery monitor attached to {source}", "OK")
-
-        def clear_connection(self):
-            self._mav_conn = None
-            self.battery_handler.disconnect()
-            self.append_message("Battery monitor disconnected", "INFO")
-
-        def _telemetry_tick(self):
-            """Poll MAVLink messages and push to HUD. Runs every 50 ms on main thread."""
-            if self._mav_conn is not None:
-                try:
-                    # Non-blocking: grab up to 10 messages per tick
-                    for _ in range(10):
-                        msg = self._mav_conn.recv_match(blocking=False)
-                        if msg is None:
-                            break
-                        mtype = msg.get_type()
-
-                        if mtype == "ATTITUDE":
-                            self.hud.redraw(
-                                pitch   = math.degrees(msg.pitch),
-                                roll    = math.degrees(msg.roll),
-                                heading = math.degrees(msg.yaw) % 360,
-                            )
-
-                        elif mtype == "VFR_HUD":
-                            self.hud.redraw(
-                                airspeed    = msg.airspeed,
-                                altitude    = msg.alt,
-                                vspeed      = msg.climb,
-                                groundspeed = msg.groundspeed,
-                                heading     = msg.heading,
-                            )
-
-                        elif mtype == "GPS_RAW_INT":
-                            self.hud.redraw(gpsfix=msg.fix_type)
-
-                        elif mtype == "SYS_STATUS":
-                            self.hud.redraw(
-                                batterylevel    = msg.voltage_battery / 1000.0,
-                                current         = msg.current_battery / 100.0,
-                                batteryremaining= msg.battery_remaining,
-                            )
-
-                        elif mtype == "HEARTBEAT":
-                            from pymavlink import mavutil
-                            armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
-                            self.hud.redraw(status=armed)
-
-                        elif mtype == "GLOBAL_POSITION_INT":
-                            self.update_telemetry("ALT", msg.relative_alt / 1000.0)
-                            self.update_telemetry("VS",  msg.vz / 100.0)
-
-                        elif mtype == "NAV_CONTROLLER_OUTPUT":
-                            self.hud.redraw(
-                                xtrack_error = msg.xtrack_error,
-                                targetheading= msg.target_bearing,
-                                disttowp     = msg.wp_dist,
-                            )
-                            self.update_telemetry("WP", msg.wp_dist)
-
-                except Exception as e:
-                    print(f"Telemetry tick error: {e}")
-
-            self.after(50, self._telemetry_tick)
-
-
     # ── scrollable sidebar internals ──────────────────────
     def _on_inner_configure(self, _e):
         # Keeps internal boundaries calculated for mouse scrolling
@@ -626,23 +554,13 @@ class DataPage(ctk.CTkFrame):
         # refresh every 1 sec
         self.after(1000, self.update_battery_ui)
         
-    def append_message(self, text: str, level: str = "INFO"):
-        """
-        Append a line to the Messages tab.
-        level: "INFO" | "WARN" | "ERROR" | "OK"
-        """
-        import datetime
-        ts = datetime.datetime.now().strftime("%H:%M:%S")
-        line = f"[{ts}] {text}\n"
-        self._msg_box.configure(state="normal")
-        self._msg_box.insert("end", line, level.upper())
-        self._msg_box.see("end")
-        self._msg_box.configure(state="disabled")
-        
     def _run_preflight(self):
+        if self._mav_conn is None:
+            self.append_message("No vehicle connected — connect first before running preflight.", "ERROR")
+            return
         checker = PreflightChecker(
-            connection_string="udp:127.0.0.1:14550",
-            on_message=self.append_message       # passes results straight to the log
+            existing_connection=self._mav_conn,
+            on_message=self.append_message
         )
         checker.run()                            # non-blocking
 
