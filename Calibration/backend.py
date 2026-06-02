@@ -5,9 +5,9 @@ import time
 from pymavlink import mavutil
 from serial import SerialException
  
-from accel   import AccelCalMixin
-from compass import CompassCalMixin
-from rc      import RCCalMixin
+from .accel   import AccelCalMixin
+from .compass import CompassCalMixin
+from .rc      import RCCalMixin
  
 log = logging.getLogger(__name__)
  

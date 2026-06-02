@@ -303,7 +303,7 @@ class ConnectPanel:
         header.pack_propagate(False)
         ctk.CTkLabel(
             header, text="CONNECTION SETTINGS",
-            font=ctk.CTkFont("Courier", 13, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 13, weight="bold"),
             text_color=TEXT_MAIN
         ).pack(side="left", padx=14, pady=8)
         ctk.CTkButton(
@@ -316,7 +316,7 @@ class ConnectPanel:
         # Status
         self.status_label = ctk.CTkLabel(
             win, text="● Not connected",
-            font=ctk.CTkFont("Courier", 11),
+            font=ctk.CTkFont("Times New Roman", 11),
             text_color=TEXT_SUB, anchor="w"
         )
         self.status_label.pack(fill="x", padx=14, pady=(6, 2))
@@ -347,7 +347,7 @@ class ConnectPanel:
         # Connect button
         self.connect_btn = ctk.CTkButton(
             win, text="CONNECT", height=36,
-            font=ctk.CTkFont("Courier", 13, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 13, weight="bold"),
             fg_color="#395886", hover_color="#628ECB", text_color=TEXT_MAIN,
             border_width=1, border_color=BORDER_CLR,
             corner_radius=8, command=self._on_connect_click,
@@ -395,7 +395,7 @@ class ConnectPanel:
  
         self.serial_desc_label = ctk.CTkLabel(
             parent, text="—",
-            font=ctk.CTkFont("Courier", 10), text_color=TEXT_SUB, anchor="w"
+            font=ctk.CTkFont("Times New Roman", 10), text_color=TEXT_SUB, anchor="w"
         )
         self.serial_desc_label.grid(
             row=2, column=0, columnspan=3, sticky="w", padx=10, pady=(2, 10))
@@ -413,7 +413,7 @@ class ConnectPanel:
         ctk.CTkButton(
             tb, text="⟳  SCAN", width=90, height=28,
             fg_color="#0c1a28", hover_color=BG_ROW_SEL, text_color=TEXT_MAIN,
-            font=ctk.CTkFont("Courier", 11, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 11, weight="bold"),
             command=self._scan_bluetooth_devices
         ).pack(side="left", padx=(0, 8))
  
@@ -448,7 +448,7 @@ class ConnectPanel:
         self._bt_placeholder = ctk.CTkLabel(
             self.bt_scroll,
             text="Click  ⟳ SCAN  to discover paired Bluetooth devices",
-            font=ctk.CTkFont("Courier", 11), text_color=TEXT_SUB
+            font=ctk.CTkFont("Times New Roman", 11), text_color=TEXT_SUB
         )
         self._bt_placeholder.pack(pady=20)
  
@@ -512,7 +512,7 @@ class ConnectPanel:
         # Name (bold-ish)
         ctk.CTkLabel(
             card, text=dev["name"],
-            font=ctk.CTkFont("Courier", 12, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 12, weight="bold"),
             text_color=TEXT_MAIN, anchor="w"
         ).grid(row=0, column=1, sticky="w", pady=(8, 0))
  
@@ -520,7 +520,7 @@ class ConnectPanel:
         detail = f"{dev['port']}  ·  {dev['desc']}"
         ctk.CTkLabel(
             card, text=detail,
-            font=ctk.CTkFont("Courier", 10),
+            font=ctk.CTkFont("Times New Roman", 10),
             text_color=TEXT_SUB, anchor="w"
         ).grid(row=1, column=1, sticky="w", pady=(0, 8))
  
@@ -528,7 +528,7 @@ class ConnectPanel:
         sel_btn = ctk.CTkButton(
             card, text="SELECT", width=72, height=26,
             fg_color=BG_INNER, hover_color=BG_ROW_SEL,
-            text_color=TEXT_MAIN, font=ctk.CTkFont("Courier", 10, weight="bold"),
+            text_color=TEXT_MAIN, font=ctk.CTkFont("Times New Roman", 10, weight="bold"),
             border_width=1, border_color=BORDER_CLR,
             command=lambda i=idx: self._select_bt_device(i)
         )
@@ -564,7 +564,7 @@ class ConnectPanel:
         ctk.CTkButton(
             tb, text="⟳  SCAN", width=90, height=28,
             fg_color="#0c1a4e", hover_color=BG_ROW_SEL, text_color=TEXT_MAIN,
-            font=ctk.CTkFont("Courier", 11, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 11, weight="bold"),
             command=self._scan_wifi
         ).pack(side="left", padx=(0, 8))
  
@@ -595,7 +595,7 @@ class ConnectPanel:
         self._wifi_placeholder = ctk.CTkLabel(
             self.wifi_scroll,
             text="Click  ⟳ SCAN  to discover nearby Wi-Fi networks",
-            font=ctk.CTkFont("Courier", 11), text_color=TEXT_SUB
+            font=ctk.CTkFont("Times New Roman", 11), text_color=TEXT_SUB
         )
         self._wifi_placeholder.pack(pady=20)
  
@@ -658,13 +658,13 @@ class ConnectPanel:
                      else ACCENT_RED)
         ctk.CTkLabel(
             card, text=bars,
-            font=ctk.CTkFont("Courier", 13), text_color=sig_color, width=50
+            font=ctk.CTkFont("Times New Roman", 13), text_color=sig_color, width=50
         ).grid(row=0, column=0, rowspan=2, padx=(8, 4), pady=8)
  
         # SSID
         ctk.CTkLabel(
             card, text=net["ssid"] or "(Hidden network)",
-            font=ctk.CTkFont("Courier", 12, weight="bold"),
+            font=ctk.CTkFont("Times New Roman", 12, weight="bold"),
             text_color=TEXT_MAIN, anchor="w"
         ).grid(row=0, column=1, sticky="w", pady=(8, 0))
  
@@ -674,7 +674,7 @@ class ConnectPanel:
             detail += f"  ·  {net['bssid']}"
         ctk.CTkLabel(
             card, text=detail,
-            font=ctk.CTkFont("Courier", 10),
+            font=ctk.CTkFont("Times New Roman", 10),
             text_color=TEXT_SUB, anchor="w"
         ).grid(row=1, column=1, sticky="w", pady=(0, 8))
  
@@ -688,7 +688,7 @@ class ConnectPanel:
         sel_btn = ctk.CTkButton(
             card, text="SELECT", width=72, height=26,
             fg_color=BG_INNER, hover_color=BG_ROW_SEL,
-            text_color=TEXT_MAIN, font=ctk.CTkFont("Courier", 10, weight="bold"),
+            text_color=TEXT_MAIN, font=ctk.CTkFont("Times New Roman", 10, weight="bold"),
             border_width=1, border_color=BORDER_CLR,
             command=lambda i=idx: self._select_wifi_network(i)
         )
@@ -717,7 +717,7 @@ class ConnectPanel:
     def _lbl(parent, text, color=TEXT_MAIN):
         return ctk.CTkLabel(
             parent, text=text,
-            font=ctk.CTkFont("Courier", 11), text_color=color
+            font=ctk.CTkFont("Times New Roman", 11), text_color=color
         )
  
     def _refresh_connect_btn(self):

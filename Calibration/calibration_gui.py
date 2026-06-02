@@ -4,7 +4,7 @@ from PIL import Image, ImageEnhance
 import customtkinter as ctk
 import serial.tools.list_ports
 
-from backend import DroneBackend
+from .backend import DroneBackend
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -44,13 +44,9 @@ MAG_STATUS_COLORS = {
 }
 
 
-class CalibrationWindow(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-
-        self.title("MAVLink Calibration Interface")
-        self.geometry("1080x680")
-        self.minsize(900, 580)
+class CalibrationPanel(ctk.CTkFrame):
+    def __init__(self, parent):
+        super().__init__(parent, fg_color="transparent")
 
         self.backend = DroneBackend()
 
@@ -85,16 +81,14 @@ class CalibrationWindow(ctk.CTk):
         self._accel_images = self._load_accel_images()
 
         # ── Top connection bar ────────────────────────────────────────────
-        self._build_connection_bar()
+        self._port_display_map = {}
+        self._port_desc_map = {}
 
         # ── Main area: left sidebar + tabview ────────────────────────────
         main = ctk.CTkFrame(self, fg_color="transparent")
-        main.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        main.pack(fill="both", expand=True, padx=8, pady=8)
 
-        self._build_left_panel(main)
         self._build_right_panel(main)
-
-        self.refresh_ports()
 
     # =========================================================================
     # CONNECTION BAR
@@ -194,6 +188,8 @@ class CalibrationWindow(ctk.CTk):
         for name in ("Accelerometer", "Compass", "RC Calibration", "Log"):
             self.tabview.add(name)
 
+        self._hide_tab_buttons()
+
         self._build_accel_tab()
         self._build_compass_tab()
         self._build_rc_tab()
@@ -215,6 +211,15 @@ class CalibrationWindow(ctk.CTk):
         )
         self.progress_label.pack(side="left", padx=(6, 0))
 
+    def _hide_tab_buttons(self):
+        segmented_button = getattr(self.tabview, "_segmented_button", None)
+        if segmented_button is not None:
+            segmented_button.grid_remove()
+
+    def show_tab(self, tab_name):
+        self.tabview.set(tab_name)
+        self.on_tab_changed()
+
     # ──────────────────────────────────────────────────────────────────────────
     # ACCELEROMETER TAB
     # ──────────────────────────────────────────────────────────────────────────
@@ -228,12 +233,12 @@ class CalibrationWindow(ctk.CTk):
         Returns dict: {position: {"idle": CTkImage, "active": CTkImage, "done": CTkImage}}
         """
         IMAGE_PATHS = {
-            1: "Calibration/Level.png",
-            2: "Calibration/Left side.png",
-            3: "Calibration/Right side.png",
-            4: "Calibration/Nose Down.png",
-            5: "Calibration/Nose Up.png",
-            6: "Calibration/Upside Down.png",
+            1: "Calibration/assets/Level.png",
+            2: "Calibration/assets/Left side.png",
+            3: "Calibration/assets/Right side.png",
+            4: "Calibration/assets/Nose Down.png",
+            5: "Calibration/assets/Nose Up.png",
+            6: "Calibration/assets/Upside Down.png",
         }
         SIZE = (100, 80)
         result = {}
@@ -329,16 +334,26 @@ class CalibrationWindow(ctk.CTk):
                 "has_image": imgs is not None,
             }
 
-        # Next button
+        button_row = ctk.CTkFrame(tab, fg_color="transparent")
+        button_row.pack(anchor="w", padx=12, pady=(8, 4))
+
         self.accel_next_btn = ctk.CTkButton(
-            tab,
+            button_row,
             text="Next Position",
             command=self.on_accel_next,
             state="disabled",
             fg_color="#219653",
             hover_color="#1b7b43",
         )
-        self.accel_next_btn.pack(anchor="w", padx=12, pady=(8, 4))
+        self.accel_next_btn.pack(side="left")
+
+        self.log_btn = ctk.CTkButton(
+            button_row,
+            text="Log",
+            width=80,
+            command=lambda: self.show_tab("Log"),
+        )
+        self.log_btn.pack(side="left", padx=(8, 0))
 
     # ──────────────────────────────────────────────────────────────────────────
     # COMPASS TAB
@@ -409,7 +424,7 @@ class CalibrationWindow(ctk.CTk):
         # ── Compass calibration illustration ──────────────────────────────
         try:
             from PIL import Image as _PILImage
-            _compass_img = _PILImage.open("Calibration/Compass_cal.png").convert("RGBA")
+            _compass_img = _PILImage.open("Calibration/assets/Compass_cal.png").convert("RGBA")
             _w, _h = _compass_img.size
             # Scale to fit nicely (max 420 wide)
             _scale = min(420 / _w, 160 / _h)
@@ -494,7 +509,7 @@ class CalibrationWindow(ctk.CTk):
         btn_row.pack(anchor="w", padx=12, pady=(16, 4))
 
         self.compass_cancel_btn = ctk.CTkButton(
-            tab,
+            btn_row,
             text="Cancel Compass Cal",
             fg_color="#c0392b",
             hover_color="#a93226",
@@ -504,7 +519,7 @@ class CalibrationWindow(ctk.CTk):
         self.compass_cancel_btn.pack(side="left", padx=(0, 8))
 
         self.compass_retry_btn = ctk.CTkButton(
-            tab,
+            btn_row,
             text="Retry",
             fg_color="#27ae60",
             hover_color="#219653",
@@ -1114,6 +1129,18 @@ class CalibrationWindow(ctk.CTk):
         if self.tabview.get() == "RC Calibration":
             self.progress.set(value / 100)
             self.progress_label.configure(text=f"{int(value)}%")
+
+
+class CalibrationWindow(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        self.title("MAVLink Calibration Interface")
+        self.geometry("1080x680")
+        self.minsize(900, 580)
+
+        self.panel = CalibrationPanel(self)
+        self.panel.pack(fill="both", expand=True)
 
 
 if __name__ == "__main__":

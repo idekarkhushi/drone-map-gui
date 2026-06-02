@@ -222,13 +222,13 @@ class TelemetryCard(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(self, text=label,
-                     font=("Courier", 14), text_color="#3a8aaa",
+                     font=("Times New Roman", 14), text_color="#3a8aaa",
                      anchor="w",
                      ).grid(row=0, column=0, sticky="w", padx=8, pady=(6, 0))
 
         self._val = ctk.CTkLabel(self,
                                   text=f"{value} {unit}".strip(),
-                                  font=("Courier", 16, "bold"),
+                                  font=("Times New Roman", 16, "bold"),
                                   text_color="#00d4ff", anchor="w")
         self._val.grid(row=1, column=0, sticky="w", padx=8, pady=(0, 6))
 
@@ -246,16 +246,16 @@ class BatteryWidget(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(self, text="⚡  BATTERY",
-                     font=("Courier", 11, "bold"), text_color="#e8b000",
+                     font=("Times New Roman", 11, "bold"), text_color="#e8b000",
                      ).grid(row=0, column=0, columnspan=2, sticky="w",
                             padx=10, pady=(8, 4))
 
         for col, (lbl, attr) in enumerate([("Voltage", "_volt"), ("Charge", "_pct")]):
-            ctk.CTkLabel(self, text=lbl, font=("Courier", 9),
+            ctk.CTkLabel(self, text=lbl, font=("Times New Roman", 9),
                          text_color="#6a7a8a",
                          ).grid(row=1, column=col, sticky="w", padx=10)
             lw = ctk.CTkLabel(self, text="--",
-                               font=("Courier", 14, "bold"), text_color="#e8b000")
+                               font=("Times New Roman", 14, "bold"), text_color="#e8b000")
             lw.grid(row=2, column=col, sticky="w", padx=10, pady=(0, 6))
             setattr(self, attr, lw)
 
@@ -277,7 +277,7 @@ class BatteryWidget(ctk.CTkFrame):
 #  SECTION LABEL helper
 # ═══════════════════════════════════════════════════════════
 def _section(parent, text, row):
-    ctk.CTkLabel(parent, text=text, font=("Courier", 14, "bold"),
+    ctk.CTkLabel(parent, text=text, font=("Times New Roman", 14, "bold"),
                  text_color="#3a7aaa",
                  ).grid(row=row, column=0, sticky="w", padx=12, pady=(8, 2))
 
@@ -388,7 +388,7 @@ class DataPage(ctk.CTkFrame):
         self._msg_box = tk.Text(
             msg_tab,
             bg="#060c14", fg="#b0cce0",
-            font=("Courier", 10),
+            font=("Times New Roman", 10),
             relief="flat",
             state="disabled",
             wrap="word",
@@ -409,7 +409,7 @@ class DataPage(ctk.CTkFrame):
         run_btn = ctk.CTkButton(
             msg_tab,
             text="Run PreFlight Checks",
-            font=("Courier", 12, "bold"),
+            font=("Times New Roman", 12, "bold"),
             fg_color="#1a3a5c",
             hover_color="#1f4870",
             text_color="#00d4ff",

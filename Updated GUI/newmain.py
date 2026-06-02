@@ -88,7 +88,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Mission Planner")
+        self.title("AEROMAC FlightDesk")
         self.geometry("1200x700")
         self.minsize(900, 580)
         
@@ -126,7 +126,7 @@ class App(ctk.CTk):
         self.conn_status_label = ctk.CTkLabel(
             self.toolbar,
             text="No connection",
-            font=ctk.CTkFont("Courier", 10),
+            font=ctk.CTkFont("Times New Roman", 10),
             text_color="gray",
         )
         self.conn_status_label.pack(side="right", padx=12)
@@ -135,6 +135,7 @@ class App(ctk.CTk):
             "data":    ctk.CTkImage(Image.open(r"Updated GUI\assets\data.png"),    size=(18, 18)),
             "plan":    ctk.CTkImage(Image.open(r"Updated GUI\assets\plan.png"),    size=(18, 18)),
             "config":  ctk.CTkImage(Image.open(r"Updated GUI\assets\config.png"),  size=(18, 18)),
+            "setup":   ctk.CTkImage(Image.open(r"Updated GUI\assets\setup.png"),   size=(18, 18)),
             "camera":  ctk.CTkImage(Image.open(r"Updated GUI\assets\camera.png"),  size=(18, 18)),
             "connect": ctk.CTkImage(Image.open(r"Updated GUI\assets\connect.png"), size=(18, 18)),
         }
@@ -142,6 +143,7 @@ class App(ctk.CTk):
         self.add_toolbar_button("DATA",   self.icons["data"],   lambda: self.show("data"))
         self.add_toolbar_button("PLAN",   self.icons["plan"],   lambda: self.show("plan"))
         self.add_toolbar_button("CONFIG", self.icons["config"], lambda: self.show("config"))
+        self.add_toolbar_button("SETUP",  self.icons["setup"],  lambda: self.show("setup"))
         self.add_toolbar_button("CAMERA", self.icons["camera"], lambda: self.show("camera"))
 
         # CONNECT button — opens the floating panel, NOT a page
@@ -155,6 +157,7 @@ class App(ctk.CTk):
 
         from DataPage    import DataPage
         from PlanPage    import PlanPage
+        from SetupPage   import SetupPage
         from ConfigPage  import ConfigPage
         from Camerapage  import CameraPage
         from connectPage import ConnectPanel   # floating panel — NOT a page
@@ -165,6 +168,7 @@ class App(ctk.CTk):
             "plan":   PlanPage(self.container),
             "config": ConfigPage(self.container),
             "camera": CameraPage(self.container),
+            "setup": SetupPage(self.container),
         }
         for frame in self.frames.values():
             frame.place(relwidth=1, relheight=1)
@@ -187,25 +191,27 @@ class App(ctk.CTk):
     def _on_connected(self, conn, mode, description):
         """Called by ConnectPanel when a link is established."""
         self.conn_status_label.configure(
-            text=f"● {description}", text_color="#81c784"
+            text="Connected", text_color="#81c784"
         )
-        data_page = self.frames.get("data")
-        if data_page and hasattr(data_page, "set_connection"):
-            data_page.set_connection(conn, mode, description)
+        for page_key in ("data", "setup"):
+            page = self.frames.get(page_key)
+            if page and hasattr(page, "set_connection"):
+                page.set_connection(conn, mode, description)
 
     def _on_disconnected(self):
         """Called by ConnectPanel when the link drops."""
         self.conn_status_label.configure(text="No connection", text_color="gray")
-        data_page = self.frames.get("data")
-        if data_page and hasattr(data_page, "clear_connection"):
-            data_page.clear_connection()
+        for page_key in ("data", "setup"):
+            page = self.frames.get(page_key)
+            if page and hasattr(page, "clear_connection"):
+                page.clear_connection()
 
     # ── Toolbar & navigation ──────────────────────────────────────────────
 
     def add_toolbar_button(self, text, icon, command):
         btn = ctk.CTkButton(
-            self.left_toolbar, text=text, image=icon, compound="top",
-            width=58, height=30, corner_radius=6, font=("Arial", 10),
+            self.left_toolbar, text="", image=icon, compound="top",
+            width=58, height=30, corner_radius=6,
             command=command,
         )
         btn.pack(side="left", padx=5, pady=0)
