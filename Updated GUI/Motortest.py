@@ -20,7 +20,7 @@ ACCENT   = "#1f6feb"
 BORDER   = "#30363d"
 TXT_PRI  = "#e6edf3"
 TXT_SEC  = "#8b949e"
-SUCCESS  = "#3fb950"
+SUCCESS  = "#3fb949"
 WARN     = "#d29922"
 ERROR    = "#f85149"
 FONT     = "Times New Roman"
@@ -260,12 +260,12 @@ class MotorTestPanel(ctk.CTkFrame):
             self, text="Motor Test",
             font=(FONT, 18, "bold"), text_color=TXT_PRI,
         ).pack(anchor="w", padx=20, pady=(16, 2))
- 
+
         ctk.CTkLabel(
             self, text="Arm the vehicle before testing. Keep props off.",
             font=(FONT, 11), text_color=WARN,
         ).pack(anchor="w", padx=20, pady=(0, 10))
- 
+
         # ── Frame info row ────────────────────────────────────────────────────
         info_row = ctk.CTkFrame(self, fg_color="transparent")
         info_row.pack(fill="x", padx=20, pady=(0, 8))
@@ -273,35 +273,38 @@ class MotorTestPanel(ctk.CTkFrame):
                                         font=(FONT, 11), text_color=TXT_SEC)
         self._class_lbl.pack(side="left", padx=(0, 20))
         self._type_lbl = ctk.CTkLabel(info_row, text="Frame Type: —",
-                                       font=(FONT, 11), text_color=TXT_SEC)
+                                    font=(FONT, 11), text_color=TXT_SEC)
         self._type_lbl.pack(side="left")
- 
+
         # ── Throttle & duration controls ──────────────────────────────────────
         ctrl_row = ctk.CTkFrame(self, fg_color=CARD_BG, corner_radius=8)
         ctrl_row.pack(fill="x", padx=20, pady=(0, 12))
- 
+
         ctk.CTkLabel(ctrl_row, text="Throttle %", font=(FONT, 11), text_color=TXT_SEC
-                     ).pack(side="left", padx=(14, 4), pady=10)
+                    ).pack(side="left", padx=(14, 4), pady=10)
         self._thr_var = ctk.StringVar(value="10")
         self._thr_spin = ctk.CTkEntry(ctrl_row, textvariable=self._thr_var,
-                                       width=60, font=(FONT, 12))
+                                    width=60, font=(FONT, 12))
         self._thr_spin.pack(side="left", padx=(0, 20), pady=10)
- 
+
         ctk.CTkLabel(ctrl_row, text="Duration (s)", font=(FONT, 11), text_color=TXT_SEC
-                     ).pack(side="left", padx=(0, 4), pady=10)
+                    ).pack(side="left", padx=(0, 4), pady=10)
         self._dur_var = ctk.StringVar(value="2")
         self._dur_spin = ctk.CTkEntry(ctrl_row, textvariable=self._dur_var,
-                                       width=60, font=(FONT, 12))
+                                    width=60, font=(FONT, 12))
         self._dur_spin.pack(side="left", padx=(0, 14), pady=10)
- 
-        # ── Motor buttons area (rebuilt after refresh) ────────────────────────
+
+        # ── Motor buttons area ────────────────────────────────────────────────
         self._motors_frame = ctk.CTkFrame(self, fg_color="transparent")
         self._motors_frame.pack(fill="x", padx=20, pady=(0, 12))
- 
+
+        # ← Build placeholder buttons RIGHT HERE, after _motors_frame exists
+        self._build_motor_buttons()
+
         # ── Global action buttons ─────────────────────────────────────────────
         action_row = ctk.CTkFrame(self, fg_color="transparent")
         action_row.pack(fill="x", padx=20, pady=(0, 10))
- 
+
         for text, cmd, color in [
             ("Test All",         self._test_all,      ACCENT),
             ("Test in Sequence", self._test_sequence,  "#2ea043"),
@@ -313,7 +316,7 @@ class MotorTestPanel(ctk.CTkFrame):
                 fg_color=color, hover_color=self._lighten(color),
                 font=(FONT, 12, "bold"), corner_radius=6,
             ).pack(side="left", padx=(0, 8))
- 
+
         # ── Status bar ────────────────────────────────────────────────────────
         self._status_lbl = ctk.CTkLabel(
             self, text="No connection", font=(FONT, 11), text_color=TXT_SEC,
@@ -326,40 +329,57 @@ class MotorTestPanel(ctk.CTkFrame):
         for w in self._motors_frame.winfo_children():
             w.destroy()
         self._motor_buttons.clear()
- 
-        if self._backend is None:
-            return
- 
-        slots = self._backend.motor_slots()
+
+        # Use detected slots if backend ready, else show 4 placeholder buttons
+        if self._backend is not None:
+            slots = self._backend.motor_slots()
+        else:
+            slots = [
+                {"test_order": i, "number": None, "rotation": None}
+                for i in range(1, 5)
+            ]
+
         cols = 4
         for idx, slot in enumerate(slots):
             row, col = divmod(idx, cols)
             sub = ctk.CTkFrame(self._motors_frame, fg_color=CARD_BG, corner_radius=8)
             sub.grid(row=row, column=col, padx=6, pady=6, sticky="ew")
             self._motors_frame.grid_columnconfigure(col, weight=1)
- 
-            ctk.CTkLabel(sub, text=slot["label"],
-                          font=(FONT, 12, "bold"), text_color=TXT_PRI
-                          ).pack(pady=(8, 2))
- 
-            details = ""
+
+            motor_letter = chr(ord('A') + idx)
+
+            # Details line
+            details_parts = []
             if slot["number"] is not None:
-                details += f"#{slot['number']}"
-            if slot["rotation"]:
-                details += f"  {slot['rotation']}"
-            if details:
-                ctk.CTkLabel(sub, text=details,
-                              font=(FONT, 10), text_color=TXT_SEC
-                              ).pack(pady=(0, 4))
- 
+                details_parts.append(f"Motor Number: {slot['number']}")
+            if slot.get("rotation"):
+                details_parts.append(slot["rotation"])
+            details = ", ".join(details_parts) if details_parts else "—"
+
             order = slot["test_order"]
+            connected = self._backend is not None
+
             btn = ctk.CTkButton(
-                sub, text="Test", width=90, height=28,
-                fg_color=ACCENT, hover_color="#363738",
-                font=(FONT, 11), corner_radius=5,
+                sub,
+                text=f"Test motor {motor_letter}",
+                width=130, height=34,
+                fg_color=SUCCESS if connected else CARD_BG,
+                hover_color=self._lighten(SUCCESS) if connected else CARD_BG,
+                border_width=1 if not connected else 0,
+                border_color=BORDER,
+                text_color=TXT_PRI if connected else TXT_SEC,
+                font=(FONT, 12, "bold"),
+                corner_radius=6,
+                state="normal" if connected else "disabled",
                 command=lambda o=order: self._test_single(o),
             )
-            btn.pack(pady=(2, 8))
+            btn.pack(padx=10, pady=(10, 4))
+
+            ctk.CTkLabel(
+                sub, text=details,
+                font=(FONT, 10), text_color=TXT_SEC,
+            ).pack(pady=(0, 8))
+
             self._motor_buttons.append(btn)
  
     # ── Backend loading (off UI thread) ──────────────────────────────────────

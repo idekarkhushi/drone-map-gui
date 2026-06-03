@@ -796,6 +796,148 @@ class ConnectPanel:
         elif mode == MODE_BLUETOOTH: self._connect_bluetooth()
         elif mode == MODE_WIFI:      self._connect_wifi()
  
+    # ── Connecting dialog (progress bar popup) ──────────────────────
+
+    def _show_connecting_dialog(self, cancel_event):
+        """
+        Show a 'Connecting Mavlink' modal dialog with an indeterminate progress
+        bar.  cancel_event is a threading.Event; setting it signals abort.
+        Returns the CTkToplevel so the caller can destroy it when done.
+        """
+        dlg = ctk.CTkToplevel(self.master)
+        dlg.title("Connecting Mavlink")
+        dlg.geometry("320x130")
+        dlg.resizable(False, False)
+        dlg.attributes("-topmost", True)
+        dlg.configure(fg_color=BG_PANEL)
+        dlg.grab_set()
+
+        ctk.CTkLabel(
+            dlg, text="Connecting Mavlink",
+            font=ctk.CTkFont("Times New Roman", 12, weight="bold"),
+            text_color=TEXT_MAIN, anchor="w"
+        ).pack(fill="x", padx=14, pady=(12, 2))
+
+        ctk.CTkLabel(
+            dlg, text="Mavlink Connecting...",
+            font=ctk.CTkFont("Times New Roman", 11),
+            text_color=TEXT_SUB, anchor="w"
+        ).pack(fill="x", padx=14, pady=(0, 6))
+
+        import tkinter.ttk as ttk
+        style = ttk.Style(dlg)
+        style.theme_use("default")
+        style.configure(
+            "Mav.Horizontal.TProgressbar",
+            troughcolor="#1a1a2e",
+            background=ACCENT_GREEN,
+            thickness=14,
+        )
+        pb = ttk.Progressbar(
+            dlg, style="Mav.Horizontal.TProgressbar",
+            orient="horizontal", mode="indeterminate", length=290
+        )
+        pb.pack(padx=14, pady=(0, 8))
+        pb.start(12)
+
+        def _cancel():
+            cancel_event.set()
+            try:
+                dlg.destroy()
+            except Exception:
+                pass
+
+        ctk.CTkButton(
+            dlg, text="Cancel", width=80, height=26,
+            fg_color="#395886", hover_color="#628ECB", text_color=TEXT_MAIN,
+            font=ctk.CTkFont("Times New Roman", 11),
+            command=_cancel
+        ).pack(anchor="e", padx=14, pady=(0, 10))
+
+        return dlg
+
+    def _show_heartbeat_received(self, description: str):
+        """
+        Show a 'Heartbeat Received' success popup that auto-closes after 2.5 s.
+        """
+        dlg = ctk.CTkToplevel(self.master)
+        dlg.title("Heartbeat Received")
+        dlg.geometry("300x120")
+        dlg.resizable(False, False)
+        dlg.attributes("-topmost", True)
+        dlg.configure(fg_color=BG_PANEL)
+        dlg.grab_set()
+
+        header = ctk.CTkFrame(dlg, fg_color=ACCENT_GREEN, corner_radius=0, height=36)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        ctk.CTkLabel(
+            header, text="✔  Heartbeat Received",
+            font=ctk.CTkFont("Times New Roman", 12, weight="bold"),
+            text_color="#ffffff"
+        ).pack(side="left", padx=12, pady=6)
+
+        ctk.CTkLabel(
+            dlg, text="MAVLink connection established successfully.",
+            font=ctk.CTkFont("Times New Roman", 11),
+            text_color=TEXT_SUB, anchor="w", wraplength=270
+        ).pack(fill="x", padx=14, pady=(10, 4))
+
+        ctk.CTkLabel(
+            dlg, text=description,
+            font=ctk.CTkFont("Times New Roman", 10),
+            text_color=ACCENT_GREEN, anchor="w", wraplength=270
+        ).pack(fill="x", padx=14)
+
+        dlg.after(2500, lambda: dlg.destroy() if dlg.winfo_exists() else None)
+
+    # ── Threaded connect helpers ─────────────────────────────────
+
+    def _run_in_thread(self, worker_fn):
+        """
+        Run worker_fn(cancel_event) in a background thread.
+        worker_fn must return (conn, description) on success or raise on failure.
+        Shows the Connecting dialog while waiting, Heartbeat popup on success.
+        """
+        import threading as _threading
+        cancel_event = _threading.Event()
+        dlg = self._show_connecting_dialog(cancel_event)
+        result_holder = {}
+
+        def worker():
+            try:
+                conn, desc = worker_fn(cancel_event)
+                result_holder["conn"] = conn
+                result_holder["desc"] = desc
+            except Exception as exc:
+                result_holder["error"] = exc
+
+        def poll():
+            if not dlg.winfo_exists():
+                return
+            if t.is_alive():
+                dlg.after(100, poll)
+                return
+            try:
+                dlg.destroy()
+            except Exception:
+                pass
+            if cancel_event.is_set():
+                return
+            if "error" in result_holder:
+                messagebox.showerror("Connection Failed", str(result_holder["error"]))
+            else:
+                self.serial_conn    = result_holder["conn"]
+                self.last_heartbeat = time.time()
+                self._start_heartbeat_monitor()
+                desc = result_holder["desc"]
+                self._post_connect(desc)
+                self._show_heartbeat_received(desc)
+
+        t = _threading.Thread(target=worker, daemon=True)
+        t.start()
+        dlg.after(100, poll)
+
     def _connect_serial(self):
         if serial is None:
             messagebox.showerror("Serial Error", "pyserial is not installed.")
@@ -810,20 +952,22 @@ class ConnectPanel:
         except ValueError:
             baud_int = 57600
         port = self._port_display_map.get(selected, selected)
-        try:
-            if mavutil is not None:
-                self.serial_conn = mavutil.mavlink_connection(port, baud=baud_int)
-                self.serial_conn.wait_heartbeat(timeout=self.heartbeat_timeout)
-                self.last_heartbeat = time.time()
-                self._start_heartbeat_monitor()
-            else:
+        desc_label = self._port_desc_map.get(selected, "")
+
+        if mavutil is not None:
+            def worker(cancel_event):
+                conn = mavutil.mavlink_connection(port, baud=baud_int)
+                conn.wait_heartbeat(timeout=self.heartbeat_timeout)
+                return conn, f"Serial \u2192 {desc_label} ({port})"
+            self._run_in_thread(worker)
+        else:
+            try:
                 self.serial_conn = serial.Serial(port, baudrate=baud_int, timeout=1)
-            desc = self._port_desc_map.get(selected, "")
-            self._post_connect(f"Serial → {desc} ({port})")
-        except Exception as e:
-            messagebox.showerror("Connection Failed", f"Failed to open {port} at {baud_int}:\n{e}")
-            self.serial_conn = None
- 
+                self._post_connect(f"Serial \u2192 {desc_label} ({port})")
+            except Exception as e:
+                messagebox.showerror("Connection Failed", f"Failed to open {port}:\n{e}")
+                self.serial_conn = None
+
     def _connect_bluetooth(self):
         if self._bt_selected_idx is None or not self._bt_devices:
             messagebox.showwarning(
@@ -837,19 +981,21 @@ class ConnectPanel:
             baud_int = int(self.bt_baud_combo.get())
         except ValueError:
             baud_int = 57600
-        try:
-            if mavutil is not None:
-                self.serial_conn = mavutil.mavlink_connection(device_path, baud=baud_int)
-                self.serial_conn.wait_heartbeat(timeout=self.heartbeat_timeout)
-                self.last_heartbeat = time.time()
-                self._start_heartbeat_monitor()
-            else:
+
+        if mavutil is not None:
+            def worker(cancel_event):
+                conn = mavutil.mavlink_connection(device_path, baud=baud_int)
+                conn.wait_heartbeat(timeout=self.heartbeat_timeout)
+                return conn, f"Bluetooth \u2192 {dev['name']} ({device_path})"
+            self._run_in_thread(worker)
+        else:
+            try:
                 self.serial_conn = serial.Serial(device_path, baudrate=baud_int, timeout=1)
-            self._post_connect(f"Bluetooth → {dev['name']} ({device_path})")
-        except Exception as e:
-            messagebox.showerror("Bluetooth Failed", str(e))
-            self.serial_conn = None
- 
+                self._post_connect(f"Bluetooth \u2192 {dev['name']} ({device_path})")
+            except Exception as e:
+                messagebox.showerror("Bluetooth Failed", str(e))
+                self.serial_conn = None
+
     def _connect_wifi(self):
         if self._wifi_selected_idx is None or not self._wifi_networks:
             messagebox.showwarning(
@@ -859,42 +1005,39 @@ class ConnectPanel:
             return
         net = self._wifi_networks[self._wifi_selected_idx]
         ssid = net["ssid"]
- 
+
         port_text = self.wifi_port_entry.get().strip()
         try:
             port_num = int(port_text) if port_text else 14550
         except ValueError:
             messagebox.showwarning("Invalid Port", "Please enter a valid port number.")
             return
- 
-        # Resolve IP for the SSID via a quick socket trick (gateway), or let user supply one
-        # For MAVLink GCS use-case: we connect to gateway IP on the given port via TCP
+
         try:
             gateway_ip = socket.gethostbyname(socket.gethostname())
         except Exception:
             gateway_ip = "192.168.1.1"
- 
-        # Attempt MAVLink TCP connection to the network's default gateway
-        try:
-            if mavutil is not None:
+
+        if mavutil is not None:
+            def worker(cancel_event):
                 conn_str = f"tcp:{gateway_ip}:{port_num}"
-                self.serial_conn = mavutil.mavlink_connection(conn_str)
-                self.serial_conn.wait_heartbeat(timeout=self.heartbeat_timeout)
-                self.last_heartbeat = time.time()
-                self._start_heartbeat_monitor()
-            else:
+                conn = mavutil.mavlink_connection(conn_str)
+                conn.wait_heartbeat(timeout=self.heartbeat_timeout)
+                return conn, f"WiFi TCP \u2192 {ssid}  {gateway_ip}:{port_num}"
+            self._run_in_thread(worker)
+        else:
+            try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.settimeout(5)
                 sock.connect((gateway_ip, port_num))
-                # Store as serial_conn duck-type wrapper
                 self.serial_conn = sock
-            self._post_connect(f"WiFi TCP → {ssid}  {gateway_ip}:{port_num}")
-        except Exception as e:
-            messagebox.showerror("WiFi Connection Failed", str(e))
-            self.serial_conn = None
- 
+                self._post_connect(f"WiFi TCP \u2192 {ssid}  {gateway_ip}:{port_num}")
+            except Exception as e:
+                messagebox.showerror("WiFi Connection Failed", str(e))
+                self.serial_conn = None
+
     def _post_connect(self, description: str):
-        self._set_status(f"Connected  ·  {description}", ACCENT_GREEN)
+        self._set_status(f"Connected  \u00b7  {description}", ACCENT_GREEN)
         self._refresh_connect_btn()
         if self.on_connected:
             self.on_connected(self.serial_conn, self.tabview.get(), description)
