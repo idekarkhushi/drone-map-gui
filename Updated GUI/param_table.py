@@ -34,13 +34,13 @@ class ParamTable(ctk.CTkFrame):
             foreground="#c8d0d8",
             fieldbackground="#12192a",
             rowheight=22,
-            font=("Courier New", 10),
+            font=("Times New Roman", 10),
             borderwidth=0,
         )
         style.configure("Params.Treeview.Heading",
             background="#0f1117",
             foreground="#8a9ab0",
-            font=("Courier New", 10, "bold"),
+            font=("Times New Roman", 10, "bold"),
             relief="flat",
         )
         style.map("Params.Treeview",
@@ -163,7 +163,7 @@ class ParamTable(ctk.CTkFrame):
 
         # Create floating Entry widget on top of the cell
         entry = tk.Entry(self._tree,
-            font=("Courier New", 10),
+            font=("Times New Roman", 10),
             bg="#1a3a1a", fg="#90ee90",
             insertbackground="#90ee90",
             relief="flat", bd=1,

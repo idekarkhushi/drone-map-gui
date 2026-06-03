@@ -235,7 +235,7 @@ class HUDRenderer:
         if is_nan:
             canvas.create_text(halfW, halfH + 30, text="⚠ NaN",
                                fill="#c41212",
-                               font=("Times New Roman", fs + 4, "bold"))
+                               font=("Courier", fs + 4, "bold"))
 
     # =========================================================================
     #  HORIZON
@@ -313,7 +313,7 @@ class HUDRenderer:
                 lx, ly = rot(halfW - lw - 28, y - 6)
                 canvas.create_text(lx, ly, text=str(a),
                                    fill=hud_col,
-                                   font=("Times New Roman", max(7, fs - 1)),
+                                   font=("Courier", max(7, fs - 1)),
                                    anchor="e")
             else:
                 x1r, y1r = rot(halfW - lshort, y)
@@ -346,7 +346,7 @@ class HUDRenderer:
             ly = halfH + (radius + llong + 8) * math.sin(ar)
             canvas.create_text(lx, ly, text=str(abs(a)),
                                fill=hud_col,
-                               font=("Times New Roman", max(6, fs - 2)))
+                               font=("Courier", max(6, fs - 2)))
 
         # needle triangle
         nr    = radius - llong * 2
@@ -442,7 +442,7 @@ class HUDRenderer:
                 lbl = labels.get(disp, str(disp))
                 canvas.create_text(xa, band_h - 20, text=lbl,
                                    fill=hud_col,
-                                   font=("Times New Roman", max(7, fs - 1)))
+                                   font=("Courier", max(7, fs - 1)))
             elif a % 5 == 0:
                 canvas.create_line(xa, band_h - 5, xa, band_h - 9,
                                    fill=hud_col, width=1)
@@ -455,7 +455,7 @@ class HUDRenderer:
         canvas.create_text(W // 2, band_h // 2,
                            text=f"{int(hdg) % 360:03d}°",
                            fill="black",
-                           font=("Times New Roman", fs, "bold"))
+                           font=("Courier", fs, "bold"))
 
     # =========================================================================
     #  XTRACK + TURN RATE
@@ -528,7 +528,7 @@ class HUDRenderer:
                                    fill=hud_col, width=2)
                 canvas.create_text(sx + 3, y, text=f"{a:4d}",
                                    fill=hud_col,
-                                   font=("Times New Roman", max(7, fs - 1)),
+                                   font=("Courier", max(7, fs - 1)),
                                    anchor="w")
 
         # centre arrow + readout
@@ -542,7 +542,7 @@ class HUDRenderer:
         canvas.create_text(sx + 4, mid_y,
                            text=f"{speed:.0f}{state.speedunit}",
                            fill="white",
-                           font=("Times New Roman", max(7, fs - 1), "bold"),
+                           font=("Courier", max(7, fs - 1), "bold"),
                            anchor="w")
 
         # sub-labels
@@ -552,11 +552,11 @@ class HUDRenderer:
         canvas.create_text(sx + 2, bot + 4,
                            text=f"AS {state.airspeed:.1f}",
                            fill=as_col,
-                           font=("Times New Roman", max(6, fs - 2)), anchor="nw")
+                           font=("Courier", max(6, fs - 2)), anchor="nw")
         canvas.create_text(sx + 2, bot + fs + 10,
                            text=f"GS {state.groundspeed:.1f}",
                            fill=gs_col,
-                           font=("Times New Roman", max(6, fs - 2)), anchor="nw")
+                           font=("Courier", max(6, fs - 2)), anchor="nw")
 
     # =========================================================================
     #  ALTITUDE TAPE (right) + VSI wedge
@@ -593,7 +593,7 @@ class HUDRenderer:
                 canvas.create_text(sx + 3, y,
                                    text=f"{a:4d}",
                                    fill=hud_col,
-                                   font=("Times New Roman", max(7, fs - 1)),
+                                   font=("Courier", max(7, fs - 1)),
                                    anchor="nw")
 
         # centre arrow + readout
@@ -607,7 +607,7 @@ class HUDRenderer:
         canvas.create_text(sx + sw - 3, mid_y,
                            text=f"{int(state.alt)}{state.altunit}",
                            fill="white",
-                           font=("Times New Roman", max(7, fs - 1), "bold"),
+                           font=("Courier", max(7, fs - 1), "bold"),
                            anchor="e")
 
         # VSI wedge (to the left of alt tape)
@@ -643,7 +643,7 @@ class HUDRenderer:
         canvas.create_text(sx - 28, bot_y + 4,
                            text=state.mode,
                            fill=mode_col,
-                           font=("Times New Roman", fs), anchor="nw")
+                           font=("Courier", fs), anchor="nw")
 
         dist, dunit = state.disttowp, state.distunit
         if dist >= 1000:
@@ -655,7 +655,7 @@ class HUDRenderer:
         canvas.create_text(sx - 28, bot_y + fs + 12,
                            text=f"{dist}{dunit} ▶ WP{state.wpno}",
                            fill=hud_col,
-                           font=("Times New Roman", fs), anchor="nw")
+                           font=("Courier", fs), anchor="nw")
 
     # =========================================================================
     #  CONN INFO (link quality + clock)
@@ -675,7 +675,7 @@ class HUDRenderer:
 
         canvas.create_text(sx, y, text=f"{int(lq)}%",
                            fill=hud_col,
-                           font=("Times New Roman", fs), anchor="nw")
+                           font=("Courier", fs), anchor="nw")
         if lq == 0:
             canvas.create_line(sx, y, sx + 48, y + 18, fill="#c41212", width=2)
             canvas.create_line(sx, y + 18, sx + 48, y, fill="#c41212", width=2)
@@ -683,7 +683,7 @@ class HUDRenderer:
         canvas.create_text(sx - 28, sb_top - fs - 20,
                            text=datetime.datetime.now().strftime("%H:%M:%S"),
                            fill=hud_col,
-                           font=("Times New Roman", fs), anchor="nw")
+                           font=("Courier", fs), anchor="nw")
 
     # =========================================================================
     #  AOA TAPE
@@ -734,27 +734,27 @@ class HUDRenderer:
             canvas.create_text(xPos, y1,
                                text=f"Cell {cv:.2f}v",
                                fill=col,
-                               font=("Times New Roman", fs), anchor="nw")
+                               font=("Courier", fs), anchor="nw")
         elif state.batterylevel2 > 0 and state.batteryon2:
             canvas.create_text(xPos, y0,
                                text=(f"Bat2 {state.batterylevel2:.2f}v "
                                      f"{state.current2:.1f}A "
                                      f"{state.batteryremaining2:.0f}%"),
                                fill=col,
-                               font=("Times New Roman", fs), anchor="nw")
+                               font=("Courier", fs), anchor="nw")
             canvas.create_text(xPos, y1,
                                text=(f"Bat1 {state.batterylevel:.2f}v "
                                      f"{state.current:.1f}A "
                                      f"{state.batteryremaining:.0f}%"),
                                fill=col,
-                               font=("Times New Roman", fs), anchor="nw")
+                               font=("Courier", fs), anchor="nw")
         else:
             canvas.create_text(xPos, y1,
                                text=(f"Bat1 {state.batterylevel:.2f}v "
                                      f"{state.current:.1f}A "
                                      f"{state.batteryremaining:.0f}%"),
                                fill=col,
-                               font=("Times New Roman", fs), anchor="nw")
+                               font=("Courier", fs), anchor="nw")
 
     # =========================================================================
     #  GPS
@@ -772,7 +772,7 @@ class HUDRenderer:
             canvas.create_text(W - 14 * fs, rows[i],
                                text=f"{prefix}{lbl}",
                                fill=col,
-                               font=("Times New Roman", fs), anchor="nw")
+                               font=("Courier", fs), anchor="nw")
 
     # =========================================================================
     #  VIBE
@@ -783,7 +783,7 @@ class HUDRenderer:
         col  = "red" if vmax > 60 else "orange" if vmax > 30 else hud_col
         lbl  = "Vibe!" if vmax > 60 else "Vibe"
         canvas.create_text(vx, vy, text=lbl, fill=col,
-                           font=("Times New Roman", fs + 1, "bold"), anchor="nw")
+                           font=("Courier", fs + 1, "bold"), anchor="nw")
 
     # =========================================================================
     #  EKF
@@ -793,7 +793,7 @@ class HUDRenderer:
         col = ("#c41212"    if state.ekfstatus > 0.8 else
                "orange" if state.ekfstatus > 0.5 else hud_col)
         canvas.create_text(ex, ey, text="EKF", fill=col,
-                           font=("Times New Roman", fs + 1, "bold"), anchor="nw")
+                           font=("Courier", fs + 1, "bold"), anchor="nw")
 
     # =========================================================================
     #  PRE-ARM
@@ -803,11 +803,11 @@ class HUDRenderer:
         if state.prearmstatus:
             canvas.create_text(px, py, text="Ready to Arm",
                                fill="white",
-                               font=("Times New Roman", fs + 1), anchor="nw")
+                               font=("Courier", fs + 1), anchor="nw")
         else:
             canvas.create_text(px, py, text="Not Ready to Arm",
                                fill="#c41212",
-                               font=("Times New Roman", fs + 1), anchor="nw")
+                               font=("Courier", fs + 1), anchor="nw")
 
     # =========================================================================
     #  CENTRE OVERLAYS (armed / disarmed / failsafe / message)
@@ -825,7 +825,7 @@ class HUDRenderer:
         if not state.status:
             canvas.create_text(halfW, halfH * 2 // 3,
                                text="DISARMED", fill="#c41212",
-                               font=("Times New Roman", fs + 10, "bold"),
+                               font=("Courier", fs + 10, "bold"),
                                anchor="center")
             if state.displayprearm:
                 prearm_text = "Ready to Arm" if state.prearmstatus else "Not Ready to Arm"
@@ -834,34 +834,34 @@ class HUDRenderer:
                 canvas.create_text(halfW, prearm_y,
                                    text=prearm_text,
                                    fill=prearm_color,
-                                   font=("Times New Roman", fs + 1, "bold"),
+                                   font=("Courier", fs + 1, "bold"),
                                    anchor="center")
             
         elif (now - state._armed_time) < 8:
             canvas.create_text(halfW, halfH * 2 // 3,
                                text="ARMED", fill="#c41212",
-                               font=("Times New Roman", fs + 20, "bold"),
+                               font=("Courier", fs + 20, "bold"),
                                anchor="center")
 
         if state.safetyactive:
             canvas.create_text(halfW, halfH + halfH // 3,
                                text="SAFETY", fill="#c41212",
-                               font=("Times New Roman", fs + 10, "bold"),
+                               font=("Courier", fs + 10, "bold"),
                                anchor="center")
 
         if state.failsafe:
             canvas.create_text(halfW, halfH,
                                text="FAILSAFE", fill="#c41212",
-                               font=("Times New Roman", fs + 20, "bold"),
+                               font=("Courier", fs + 20, "bold"),
                                anchor="center")
 
         if state.message:
             canvas.create_text(halfW, halfH + halfH // 2,
                                text=state.message,
                                fill=state.message_color,
-                               font=("Times New Roman", fs + 4), anchor="center")
+                               font=("Courier", fs + 4), anchor="center")
 
         if state.load >= 100:
             canvas.create_text(halfW + 50, H - 28,
                                text="CPU!", fill="#b80808",
-                               font=("Times New Roman", fs + 2), anchor="nw")
+                               font=("Courier", fs + 2), anchor="nw")

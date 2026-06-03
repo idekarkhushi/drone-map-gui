@@ -87,6 +87,8 @@ class SplashScreen(ctk.CTkToplevel):
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
+        
+        self.iconbitmap(r"Updated GUI\assets\Aeromac.ico")
 
         self.title("AEROMAC FlightDesk")
         self.geometry("1200x700")

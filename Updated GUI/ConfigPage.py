@@ -77,7 +77,7 @@ class ConfigPage(ctk.CTkFrame):
         ctk.CTkLabel(
             nav,
             text="CONFIG",
-            font=("Arial", 12, "bold"),
+            font=("Times New Roman", 12, "bold"),
             text_color="#58a6ff",
         ).pack(anchor="w", padx=12, pady=(14, 8))
 
@@ -95,7 +95,7 @@ class ConfigPage(ctk.CTkFrame):
             fg_color="#1f6feb",
             hover_color="#388bfd",
             text_color="#ffffff",
-            font=("Arial", 12),
+            font=("Times New Roman", 12),
             corner_radius=6,
         ).pack(fill="x", padx=8, pady=2)
 
@@ -142,7 +142,7 @@ class ConfigPage(ctk.CTkFrame):
             search_bar,
             text="Search:",
             text_color="#8b949e",
-            font=("Arial", 12)
+            font=("Times New Roman", 12)
         ).pack(side="left", padx=(12, 4), pady=10)
 
         self._search_var = ctk.StringVar()
@@ -157,7 +157,7 @@ class ConfigPage(ctk.CTkFrame):
             textvariable=self._search_var,
             width=220,
             height=26,
-            font=("Arial", 12),
+            font=("Times New Roman", 12),
             fg_color="#0d1117",
             border_color="#30363d",
             text_color="#c9d1d9",
@@ -171,7 +171,7 @@ class ConfigPage(ctk.CTkFrame):
             text="Modified only",
             variable=self._modified_var,
             command=self._apply_filter,
-            font=("Arial", 11),
+            font=("Times New Roman", 11),
             text_color="#8b949e",
             fg_color="#1f6feb",
             hover_color="#388bfd",
@@ -185,7 +185,7 @@ class ConfigPage(ctk.CTkFrame):
             text="Favourites only",
             variable=self._favs_var,
             command=self._apply_filter,
-            font=("Arial", 11),
+            font=("Times New Roman", 11),
             text_color="#8b949e",
             fg_color="#1f6feb",
             hover_color="#388bfd",
@@ -196,7 +196,7 @@ class ConfigPage(ctk.CTkFrame):
             search_bar,
             text="No Parameters Loaded",
             text_color="#484f58",
-            font=("Arial", 10)
+            font=("Times New Roman", 10)
         )
 
         self._count_label.pack(side="right", padx=12)
@@ -258,7 +258,7 @@ class ConfigPage(ctk.CTkFrame):
                 fg_color=fg,
                 hover_color=hover,
                 text_color=tc,
-                font=("Arial", 11),
+                font=("Times New Roman", 11),
                 corner_radius=6,
             )
 
@@ -317,7 +317,7 @@ class ConfigPage(ctk.CTkFrame):
         ctk.CTkLabel(
             panel,
             text="All units in raw\nformat, no scaling",
-            font=("Arial", 9),
+            font=("Times New Roman", 9),
             text_color="#484f58",
             justify="left",
         ).pack(anchor="w", padx=10, pady=2)
@@ -328,7 +328,7 @@ class ConfigPage(ctk.CTkFrame):
         ctk.CTkLabel(
             panel,
             text="Vehicle type:",
-            font=("Arial", 10),
+            font=("Times New Roman", 10),
             text_color="#8b949e",
         ).pack(anchor="w", padx=10)
 
@@ -338,7 +338,7 @@ class ConfigPage(ctk.CTkFrame):
             panel,
             values=["ArduCopter", "ArduPlane", "ArduRover"],
             variable=self._vehicle_var,
-            font=("Arial", 10),
+            font=("Times New Roman", 10),
             height=26,
             fg_color="#21262d",
             button_color="#30363d",
@@ -378,7 +378,7 @@ class ConfigPage(ctk.CTkFrame):
         self._status_total = ctk.CTkLabel(
             bar,
             text="Parameters: 0",
-            font=("Arial", 10),
+            font=("Times New Roman", 10),
             text_color="#8b949e"
         )
 
@@ -393,7 +393,7 @@ class ConfigPage(ctk.CTkFrame):
         self._status_mod = ctk.CTkLabel(
             bar,
             text="Modified: 0",
-            font=("Arial", 10),
+            font=("Times New Roman", 10),
             text_color="#3fb950"
         )
 
@@ -408,7 +408,7 @@ class ConfigPage(ctk.CTkFrame):
         self._status_fav = ctk.CTkLabel(
             bar,
             text="Favourites: 0",
-            font=("Arial", 10),
+            font=("Times New Roman", 10),
             text_color="#d29922"
         )
 
@@ -586,23 +586,15 @@ class ConfigPage(ctk.CTkFrame):
         loaded = 0
 
         with open(path, "r") as f:
-
             for line in f:
-
                 line = line.strip()
-
                 if not line or line.startswith("#"):
                     continue
-
                 parts = line.replace(",", " ").split()
-
                 if len(parts) >= 2:
-
                     name = parts[0]
-
                     try:
                         val = float(parts[1])
-
                     except ValueError:
                         continue
 
