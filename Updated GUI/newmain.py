@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+import ctypes
 import customtkinter as ctk
 from PIL import Image, ImageTk
 import cv2
@@ -14,6 +15,37 @@ for path in (base_dir, project_root):
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+
+FONT_PATH = r"Updated GUI\assets\Good Times Rg.ttf"
+
+
+def register_custom_title_font(font_path):
+    """Register a custom font file on Windows and return its family name."""
+    if os.name != "nt" or not os.path.exists(font_path):
+        return None
+
+    try:
+        ctypes.windll.gdi32.AddFontResourceW(font_path)
+        HWND_BROADCAST = 0xFFFF
+        WM_FONTCHANGE = 0x001D
+        SMTO_ABORTIFHUNG = 0x0002
+        ctypes.windll.user32.SendMessageTimeoutW(
+            HWND_BROADCAST,
+            WM_FONTCHANGE,
+            0,
+            None,
+            SMTO_ABORTIFHUNG,
+            1000,
+            None,
+        )
+        return os.path.splitext(os.path.basename(font_path))[0]
+    except Exception:
+        return None
+
+
+TITLE_FONT_FAMILY = register_custom_title_font(FONT_PATH)
+GOOD_TIMES_FONT = TITLE_FONT_FAMILY or "Good Times Rg"
 
 # ── SPLASH / INTRO VIDEO WINDOW ───────────────────────────────────────────────
 class SplashScreen(ctk.CTkToplevel):
@@ -124,11 +156,23 @@ class App(ctk.CTk):
         self.left_toolbar = ctk.CTkFrame(self.toolbar, fg_color="transparent")
         self.left_toolbar.pack(side="left", padx=(4, 0), pady=2)
 
+        self.title_label = ctk.CTkLabel(
+            self.toolbar,
+            text="Aeromac Dynamics",
+            font=ctk.CTkFont(
+                family=GOOD_TIMES_FONT,
+                size=16,
+                weight="bold",
+            ),
+            text_color="#0c1a4e",
+        )
+        self.title_label.pack(side="left", padx=(8, 0), pady=2)
+
         # Connection status label on the right side of toolbar
         self.conn_status_label = ctk.CTkLabel(
             self.toolbar,
             text="No connection",
-            font=ctk.CTkFont("Times New Roman", 10),
+            font=ctk.CTkFont(family=GOOD_TIMES_FONT, size=10),
             text_color="gray",
         )
         self.conn_status_label.pack(side="right", padx=12)

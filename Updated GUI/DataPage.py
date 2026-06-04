@@ -431,7 +431,7 @@ class DataPage(ctk.CTkFrame):
 
         self.map = tkintermapview.TkinterMapView(map_wrap)
         self.map.grid(row=0, column=0, sticky="nsew")
-        self.map.set_position(19.0760, 72.8777)
+        self.map.set_position(28.6139, 77.5946)
         self.map.set_zoom(12)
         
         # Battery handler

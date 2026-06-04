@@ -37,7 +37,7 @@ class PlanPage(ctk.CTkFrame):
 
         self.map = tkintermapview.TkinterMapView(map_shell, corner_radius=0)
         self.map.grid(row=0, column=0, sticky="nsew")
-        self.map.set_position(19.0760, 72.8777)  # Mumbai
+        self.map.set_position(28.6139,77.2090)  # New Delhi coordinates as default
         self.map.set_zoom(12)
 
         # CLICK EVENT → ADD WAYPOINT

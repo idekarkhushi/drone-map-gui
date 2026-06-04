@@ -18,6 +18,8 @@ from core.simulation import DroneSimulation
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+GOOD_TIMES_FONT = "Good Times"
+
 
 class MapApp(ctk.CTk):
     def __init__(self):
@@ -58,7 +60,7 @@ class MapApp(ctk.CTk):
         
         # LEFT
         self.wp_title = ctk.CTkLabel(
-            self.telemetry_bar, text="Selected Waypoint", font=("Arial", 12, "bold")
+            self.telemetry_bar, text="Selected Waypoint", font=(GOOD_TIMES_FONT, 12, "bold")
         )
         self.wp_title.grid(row=0, column=0, sticky="w", padx=15, pady=(5, 0))
 
@@ -69,19 +71,19 @@ class MapApp(ctk.CTk):
         self.wp_info.grid(row=1, column=0, sticky="w", padx=15)
 
         self.telemetry_status = ctk.CTkLabel(
-            self.telemetry_bar, text="Status: Idle", font=("Arial", 12, "bold")
+            self.telemetry_bar, text="Status: Idle", font=(GOOD_TIMES_FONT, 12, "bold")
         )
         self.telemetry_status.grid(row=2, column=0, sticky="w", padx=15)
 
         self.telemetry_data = ctk.CTkLabel(
-            self.telemetry_bar, text="Speed: 0 m/s | Distance: 0 m", font=("Arial", 12)
+            self.telemetry_bar, text="Speed: 0 m/s | Distance: 0 m", font=(GOOD_TIMES_FONT, 12)
         )
         self.telemetry_data.grid(row=3, column=0, sticky="w", padx=(15,5))
         
 
         # CENTER
         self.mission_title = ctk.CTkLabel(
-            self.telemetry_bar, text="Total Mission", font=("Arial", 12, "bold")
+            self.telemetry_bar, text="Total Mission", font=(GOOD_TIMES_FONT, 12, "bold")
         )
         self.mission_title.grid(row=0, column=1, sticky="w", padx=15, pady=(5, 0))
 
@@ -129,7 +131,7 @@ class MapApp(ctk.CTk):
         self.message_label.pack(pady=5)
 
         # --- BATTERY ---
-        ctk.CTkLabel(self.right_panel, text="Battery", font=("Arial", 14, "bold")).pack(pady=5)
+        ctk.CTkLabel(self.right_panel, text="Battery", font=(GOOD_TIMES_FONT, 14, "bold")).pack(pady=5)
 
         self.voltage_label = ctk.CTkLabel(self.right_panel, text="Voltage: -- V")
         self.voltage_label.pack()
