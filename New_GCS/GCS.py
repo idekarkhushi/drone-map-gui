@@ -2,7 +2,8 @@ import customtkinter as ctk
 import tkinter as tk
 import tkintermapview
 import serial.tools.list_ports
-from PIL import Image
+import cv2
+from PIL import Image, ImageTk
 import sys
 import math
 import time
@@ -672,11 +673,11 @@ class BottomPanel(ctk.CTkFrame):
             master, height=160, fg_color=BG_PANEL, corner_radius=0,
             border_width=1, border_color=BORDER, **kwargs,
         )
-        self.grid_propagate(False)
-        # 4 equal columns
-        for i in range(4):
-            self.grid_columnconfigure(i, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_propagate(False)    # ← THIS is the critical line
+        self.grid_columnconfigure(0, weight=2)
+        self.grid_columnconfigure(1, weight=2)
+        self.grid_columnconfigure(2, weight=1)
+        self.grid_columnconfigure(3, weight=2)
         self._build()
 
     def _build(self):
@@ -686,14 +687,14 @@ class BottomPanel(ctk.CTkFrame):
 
     # ── helpers ────────────────────────────────────────────────────────────────
     def _section(self, col: int, title: str, accent: str, span: int = 1):
-        """Create a titled card frame and return its inner content frame."""
         card = ctk.CTkFrame(
             self, fg_color=BG_CARD, corner_radius=10,
             border_width=1, border_color=BORDER,
         )
         card.grid(row=0, column=col, columnspan=span, sticky="nsew",
-                  padx=(10 if col == 0 else 3, 3 if col < 2 else 10), pady=8)
-        card.grid_rowconfigure(1, weight=1)
+                padx=(10 if col == 0 else 3, 10 if col == 3 else 3), pady=4)
+        card.grid_rowconfigure(0, weight=0)
+        card.grid_rowconfigure(1, weight=0)   # ← changed from weight=1
         card.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -701,10 +702,10 @@ class BottomPanel(ctk.CTkFrame):
             text=title,
             font=ctk.CTkFont(family="Times New Roman", size=9, weight="bold"),
             text_color=accent,
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(7, 2))
+        ).grid(row=0, column=0, sticky="w", padx=10, pady=(4, 2))
 
         inner = ctk.CTkFrame(card, fg_color="transparent")
-        inner.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 8))
+        inner.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 4))
         inner.grid_columnconfigure(0, weight=1)
         return inner
 
@@ -726,76 +727,100 @@ class BottomPanel(ctk.CTkFrame):
         lbl.grid(row=row, column=1, sticky="e")
         return lbl
 
-    # ── Frame 1 + 2: Combined control area ───────────────────────────────────
+    # ── Frame 1:Interceptor Control  ───────────────────────────────────────────
     def _build_ready(self):
         inner = self._section(0, "INTERCEPTOR CONTROL", TEXT_MUTED, span=2)
-        inner.grid_columnconfigure((0, 1), weight=1)
+        inner.grid_rowconfigure(0, weight=0)
+        inner.grid_rowconfigure(1, weight=0)   # ← was weight=1
+        inner.grid_columnconfigure(0, weight=1)
+    
+        self.interceptor_status_label = ctk.CTkLabel(
+            inner,
+            text="AD 01\n READY",
+            font=ctk.CTkFont(family="Times New Roman", size=11, weight="bold"),
+            text_color=ACCENT_GREEN,
+            anchor="w",
+        )
+        self.interceptor_status_label.grid(row=0, column=0, sticky="ew", pady=(0, 4), padx=(4, 0))
 
+        try:
+            pil_img = Image.open(r"New_GCS\assets\Missile.png").convert("RGBA")
+
+            # ── Remove dark/black background ──────────────────────────────────────
+            data = pil_img.getdata()
+            new_data = []
+            for r, g, b, a in data:
+                # Any pixel darker than threshold becomes transparent
+                if r < 60 and g < 60 and b < 60:
+                    new_data.append((0, 0, 0, 0))
+                else:
+                    new_data.append((r, g, b, a))
+            pil_img.putdata(new_data)
+
+            self._missile_ctk_image = ctk.CTkImage(
+                light_image=pil_img,
+                dark_image=pil_img,
+                size=(500, 100),
+            )
+
+            self.missile_label = ctk.CTkLabel(
+                inner,
+                image=self._missile_ctk_image,
+                text="",
+                fg_color="transparent",
+            )
+
+        except Exception as e:
+            self.missile_label = ctk.CTkLabel(
+                inner,
+                text=f"[IMAGE NOT FOUND]\n{e}",
+                text_color=ACCENT_RED,
+                font=ctk.CTkFont(family="Times New Roman", size=9),
+            )
+
+        self.missile_label.grid(row=1, column=0, sticky="nsew")
+
+    
     # ── Frame 2: Action ────────────────────────────────────────────────────────
     def _build_action(self):
         inner = self._section(2, "ACTION", TEXT_MUTED)
-        inner.grid_columnconfigure((0, 1), weight=1)
+        inner.grid_columnconfigure(0, weight=1)
+        inner.grid_rowconfigure((0, 1), weight=1)
 
-        for text, fg_txt, bg, bdr, r in [
-            ("LAUNCH", ACCENT_GREEN, "#0a1f0e", "#0d5a1e", 0),
-            ("ABORT",  ACCENT_RED,   "#1f0a0a", "#5a0d0d", 1),
-        ]:
-            self.launch_icon = ctk.CTkImage(
-                light_image=Image.open("New_GCS/assets/Launch.png"),
-                dark_image=Image.open("New_GCS/assets/Launch_white.png"),
-                size=(22, 22)
-            )
+        self.launch_icon = ctk.CTkImage(
+            light_image=Image.open("New_GCS/assets/Launch.png"),
+            dark_image=Image.open("New_GCS/assets/Launch_white.png"),
+            size=(22, 22)
+        )
+        self.abort_icon = ctk.CTkImage(
+            light_image=Image.open("New_GCS/assets/Abort.png"),
+            dark_image=Image.open("New_GCS/assets/Abort.png"),
+            size=(22, 22)
+        )
 
-            self.abort_icon = ctk.CTkImage(
-                light_image=Image.open("New_GCS/assets/Abort.png"),
-                dark_image=Image.open("New_GCS/assets/Abort.png"),
-                size=(22, 22)
-            )
-            self.launch_btn = ctk.CTkButton(
-                inner,
-                text="LAUNCH",
-                image=self.launch_icon,
-                compound="left",
-                height=38,
-                fg_color="#0a1f0e",
-                hover_color="#243a57",
-                border_color="#0d5a1e",
-                border_width=1,
-                text_color=ACCENT_GREEN,
-                font=ctk.CTkFont(
-                    family="Times New Roman",
-                    size=10,
-                    weight="bold"
-                ),
-                corner_radius=6,
-            )
-            self.launch_btn.grid(row=0, column=0, sticky="ew", pady=(0,3))
+        self.launch_btn = ctk.CTkButton(
+            inner, text="LAUNCH", image=self.launch_icon, compound="left",
+            height=40, fg_color="#0a1f0e", hover_color="#243a57",
+            border_color="#0d5a1e", border_width=1, text_color=ACCENT_GREEN,
+            font=ctk.CTkFont(family="Times New Roman", size=12, weight="bold"),
+            corner_radius=6,
+        )
+        self.launch_btn.grid(row=0, column=0, sticky="ew", pady=(0, 3))
 
-            self.abort_btn = ctk.CTkButton(
-                inner,
-                text="ABORT",
-                image=self.abort_icon,
-                compound="left",
-                height=38,
-                fg_color="#1f0a0a",
-                hover_color="#243a57",
-                border_color="#5a0d0d",
-                border_width=1,
-                text_color=ACCENT_RED,
-                font=ctk.CTkFont(
-                    family="Times New Roman",
-                    size=10,
-                    weight="bold"
-                ),
-                corner_radius=6,
-            )
-            self.abort_btn.grid(row=1, column=0, sticky="ew")
+        self.abort_btn = ctk.CTkButton(
+            inner, text="ABORT", image=self.abort_icon, compound="left",
+            height=40, fg_color="#1f0a0a", hover_color="#243a57",
+            border_color="#5a0d0d", border_width=1, text_color=ACCENT_RED,
+            font=ctk.CTkFont(family="Times New Roman", size=12, weight="bold"),
+            corner_radius=6,
+        )
+        self.abort_btn.grid(row=1, column=0, sticky="ew")
 
     # ── Frame 3: System status ─────────────────────────────────────────────────
     def _build_system_status(self):
         inner = self._section(3, "SYSTEM STATUS", TEXT_MUTED)
         inner.grid_columnconfigure((0, 1), weight=1)
-        inner.grid_rowconfigure((0, 1), weight=1)
+        inner.grid_rowconfigure((0, 1), weight=0) 
 
         self._sys_rows = {}
         rows = [
@@ -822,20 +847,22 @@ class BottomPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(
              f, text=label,
-            font=ctk.CTkFont(family="Times New Roman", size=9),
+            font=ctk.CTkFont(family="Times New Roman", size=12),
             text_color=TEXT_MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=8, pady=(6, 0))
+        ).grid(row=0, column=0, sticky="w", padx=8, pady=(3, 0))
 
         val_lbl = ctk.CTkLabel(
             f, text=value,
-            font=ctk.CTkFont(family="Times New Roman", size=12, weight="bold"),
+            font=ctk.CTkFont(family="Times New Roman", size=10, weight="bold"),
             text_color=color, anchor="w",
         )
         # Store the frame too so we can update border colour live if needed
         val_lbl.grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
         return val_lbl
 
-    # ── Public API called by GCSApp ────────────────────────────────────────────
+    # ── Public API called by GCSApp ───────────────────────────────────────────
+    
+        
     def update_status_badge(self, key: str, value: str, color: str):
         """
         Thread-safe entry point — call this from ANY thread.
@@ -875,7 +902,7 @@ class TitleBar(ctk.CTkFrame):
 
         ctk.CTkLabel(
             self,
-            text="⬡  GCS DASHBOARD",
+            text="GCS DASHBOARD",
             font=ctk.CTkFont(family="Times New Roman", size=11, weight="bold"),
             text_color=ACCENT_BLUE,
         ).grid(row=0, column=0, padx=(14, 0), pady=0, sticky="w")

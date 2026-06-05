@@ -32,13 +32,13 @@ class ActionsTab(ctk.CTkFrame):
             border_width=1,
             corner_radius=3,
             text_color="white",
-            font=("Courier New", 12),
+            font=("Times New Roman", 12),
             height=28,
         )
 
         def entry_with_focus(parent, textvariable, width, on_enter):
             e = ctk.CTkEntry(parent, textvariable=textvariable,
-                             width=width, font=("Courier New", 12))
+                             width=width, font=("Times New Roman", 12))
             e.bind("<FocusIn>",  lambda _: e.configure(border_color="#8acc40", border_width=2))
             e.bind("<FocusOut>", lambda _: e.configure(border_color="#555",    border_width=1))
             e.bind("<Return>",   lambda _: on_enter())
@@ -50,7 +50,7 @@ class ActionsTab(ctk.CTkFrame):
         self.speed_var = ctk.StringVar(value="5")
         entry_with_focus(r0, self.speed_var, 70, self._change_speed).grid(row=0, column=0, padx=4)
         ctk.CTkLabel(r0, text="Change Speed (m/s)",
-                     font=("Courier New", 12)).grid(row=0, column=1, padx=4)
+                     font=("Times New Roman", 12)).grid(row=0, column=1, padx=4)
 
         # ── Row 1: Change Altitude ───────────────────────────
         r1 = ctk.CTkFrame(self, fg_color="transparent")
@@ -58,7 +58,7 @@ class ActionsTab(ctk.CTkFrame):
         self.alt_var = ctk.StringVar(value="50")
         entry_with_focus(r1, self.alt_var, 70, self._change_altitude).grid(row=0, column=0, padx=4)
         ctk.CTkLabel(r1, text="Change Altitude (m)",
-                     font=("Courier New", 12)).grid(row=0, column=1, padx=4)
+                     font=("Times New Roman", 12)).grid(row=0, column=1, padx=4)
 
         # ── Row 2: Set Loiter Radius ─────────────────────────
         r2 = ctk.CTkFrame(self, fg_color="transparent")
@@ -66,7 +66,7 @@ class ActionsTab(ctk.CTkFrame):
         self.loiter_rad_var = ctk.StringVar(value="100")
         entry_with_focus(r2, self.loiter_rad_var, 70, self._set_loiter_radius).grid(row=0, column=0, padx=4)
         ctk.CTkLabel(r2, text="Set Loiter Radius (m)",
-                     font=("Courier New", 12)).grid(row=0, column=1, padx=4)
+                     font=("Times New Roman", 12)).grid(row=0, column=1, padx=4)
 
         # ── Row 3: RTL / Loiter / Arm/Disarm ────────────────
         r3 = ctk.CTkFrame(self, fg_color="transparent")
@@ -275,14 +275,14 @@ class ActionsTab(ctk.CTkFrame):
         ctk.CTkLabel(
             self.confirm_popup,
             text="Disarm",
-            font=("Segoe UI", 16, "bold")
+            font=("Times New Roman", 16, "bold")
         ).pack(pady=(12, 8))
 
         # message
         ctk.CTkLabel(
             self.confirm_popup,
             text="Are you sure you want to Disarm",
-            font=("Segoe UI", 13)
+            font=("Times New Roman", 13)
         ).pack(pady=(10, 25))
 
         # buttons frame
@@ -402,7 +402,7 @@ class ActionsTab(ctk.CTkFrame):
         ctk.CTkLabel(
             self.force_popup,
             text="Error",
-            font=("Segoe UI", 16, "bold")
+            font=("Times New Roman", 16, "bold")
         ).pack(pady=(14, 10))
 
         # warning text
@@ -418,7 +418,7 @@ class ActionsTab(ctk.CTkFrame):
             self.force_popup,
             text=warning_text,
             justify="center",
-            font=("Segoe UI", 13)
+            font=("Times New Roman", 13)
         ).pack(pady=(5, 22))
 
         # buttons frame
@@ -538,19 +538,19 @@ class ActionsTestWindow(ctk.CTk):
 
         self.conn_btn = ctk.CTkButton(
             bar, text="Connect", width=90, height=26,
-            font=("Courier New", 12),
+            font=("Times New Roman", 12),
             fg_color="#1a5a80", hover_color="#2a7aaa",
             command=self._connect)
         self.conn_btn.pack(side="left", padx=8, pady=4)
 
         self.status_lbl = ctk.CTkLabel(
             bar, text="● Disconnected",
-            font=("Courier New", 11), text_color="#cc4444")
+            font=("Times New Roman", 11), text_color="#cc4444")
         self.status_lbl.pack(side="left", padx=4)
 
         ctk.CTkButton(
             bar, text="Clear", width=70, height=26,
-            font=("Courier New", 11),
+            font=("Times New Roman", 11),
             fg_color="#333", hover_color="#444",
             command=self._clear).pack(side="right", padx=8, pady=4)
 
@@ -562,7 +562,7 @@ class ActionsTestWindow(ctk.CTk):
         frame.grid_rowconfigure(0, weight=1)
 
         self.console = ctk.CTkTextbox(
-            frame, font=("Courier New", 12),
+            frame, font=("Times New Roman", 12),
             fg_color="#111", text_color="#ccc",
             corner_radius=0, state="disabled")
         self.console.grid(row=0, column=0, sticky="nsew")

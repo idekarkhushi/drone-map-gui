@@ -156,23 +156,11 @@ class App(ctk.CTk):
         self.left_toolbar = ctk.CTkFrame(self.toolbar, fg_color="transparent")
         self.left_toolbar.pack(side="left", padx=(4, 0), pady=2)
 
-        self.title_label = ctk.CTkLabel(
-            self.toolbar,
-            text="Aeromac Dynamics",
-            font=ctk.CTkFont(
-                family=GOOD_TIMES_FONT,
-                size=16,
-                weight="bold",
-            ),
-            text_color="#0c1a4e",
-        )
-        self.title_label.pack(side="left", padx=(8, 0), pady=2)
-
         # Connection status label on the right side of toolbar
         self.conn_status_label = ctk.CTkLabel(
             self.toolbar,
             text="No connection",
-            font=ctk.CTkFont(family=GOOD_TIMES_FONT, size=10),
+            font=ctk.CTkFont("Times New Roman", size=10),
             text_color="gray",
         )
         self.conn_status_label.pack(side="right", padx=12)
