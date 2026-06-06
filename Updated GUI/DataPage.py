@@ -6,6 +6,7 @@ import math
 from core.battery import BatteryHandler
 
 from Hud_core import HUDRenderer, HUDState
+from Telemetry import TelemetryHandler
 from preflight import PreflightChecker
 
 import threading
@@ -30,18 +31,16 @@ class HUDWidget(tk.Canvas):
         self._W = 230
         self._H = 180
         self.configure(width=self._W, height=self._H)
- 
-        # All telemetry lives here – set any field directly
+
         self.state = HUDState()
- 
+        self._dirty = False
         self._draw()
+        self._schedule_draw()  # start the render loop
 
     # ======================================================
     # Resize
     # ======================================================
-
     def resize(self, width: int):
-
         w = max(180, width - 12)
         h = int(w * 0.60)
 
@@ -50,14 +49,21 @@ class HUDWidget(tk.Canvas):
 
         self._W = w
         self._H = h
-
         self.configure(width=w, height=h)
+        self._dirty = True  # mark dirty, let scheduler handle it
 
-        self._draw()
+    # ======================================================
+    # Throttled render loop — runs at 20 Hz max
+    # Decouples MAVLink poll rate from canvas redraws
+    # ======================================================
+    def _schedule_draw(self):
+        if self._dirty:
+            self._draw()
+            self._dirty = False
+        self.after(50, self._schedule_draw)  # 50ms = 20 Hz
 
     # ----------------------------------------------------------
-    # Public update – accepts the same kwargs as before PLUS
-    # any HUDState field for the extended telemetry.
+    # Public update
     # ----------------------------------------------------------
     def redraw(
         self,
@@ -67,7 +73,6 @@ class HUDWidget(tk.Canvas):
         airspeed: float     = None,
         altitude: float     = None,
         vspeed: float       = None,
-        # ── extended fields ───────────────────────────────────
         groundspeed: float  = None,
         targetspeed: float  = None,
         targetalt: float    = None,
@@ -113,7 +118,6 @@ class HUDWidget(tk.Canvas):
         distunit: str       = None,
         speedunit: str      = None,
         altunit: str        = None,
-        # display toggles
         displayheading: bool   = None,
         displayspeed: bool     = None,
         displayalt: bool       = None,
@@ -131,17 +135,13 @@ class HUDWidget(tk.Canvas):
         displayCellVoltage: bool = None,
     ):
         s = self.state
- 
-        # ── attitude ──────────────────────────────────────────
+
         if pitch        is not None: s.pitch        = pitch
         if roll         is not None: s.roll         = roll
         if heading      is not None: s.heading      = float(heading)
-        # legacy alias: altitude → alt
         if altitude     is not None: s.alt          = altitude
-        # legacy alias: vspeed → verticalspeed
         if vspeed       is not None: s.verticalspeed = vspeed
- 
-        # ── extended ──────────────────────────────────────────
+
         if airspeed          is not None: s.airspeed          = airspeed
         if groundspeed       is not None: s.groundspeed       = groundspeed
         if targetspeed       is not None: s.targetspeed       = targetspeed
@@ -188,7 +188,6 @@ class HUDWidget(tk.Canvas):
         if distunit          is not None: s.distunit          = distunit
         if speedunit         is not None: s.speedunit         = speedunit
         if altunit           is not None: s.altunit           = altunit
-        # toggles
         if displayheading    is not None: s.displayheading    = displayheading
         if displayspeed      is not None: s.displayspeed      = displayspeed
         if displayalt        is not None: s.displayalt        = displayalt
@@ -204,9 +203,9 @@ class HUDWidget(tk.Canvas):
         if displayprearm     is not None: s.displayprearm     = displayprearm
         if displayAOASSA     is not None: s.displayAOASSA     = displayAOASSA
         if displayCellVoltage is not None: s.displayCellVoltage = displayCellVoltage
- 
-        self._draw()
-        
+
+        self._dirty = True  # just mark dirty — scheduler draws it
+
     # ----------------------------------------------------------
     # Internal
     # ----------------------------------------------------------
@@ -439,7 +438,12 @@ class DataPage(ctk.CTkFrame):
         self.after(1000, self.update_battery_ui)
         
         self._mav_conn = None
-        self.after(100, self._telemetry_tick)
+        self.telemetry = TelemetryHandler(
+            on_hud_update   = self.update_hud,
+            on_telem_update = self.update_telemetry,
+            on_message      = self.append_message,
+            poll_hz         = 20,
+        )
 
     # ── scrollable sidebar internals ──────────────────────
     def _on_inner_configure(self, _e):
@@ -477,67 +481,15 @@ class DataPage(ctk.CTkFrame):
         self._mav_conn = conn
         if self.battery_handler.attach_connection(conn):
             self.battery_handler.start()
+            self.telemetry.attach(conn)
             source = f"{mode} connection" if mode else "connection"
             self.append_message(f"Battery monitor attached to {source}", "OK")
 
     def clear_connection(self):
         self._mav_conn = None
+        self.telemetry.detach()
         self.battery_handler.disconnect()
         self.append_message("Battery monitor disconnected", "INFO")
-        
-    def _telemetry_tick(self):
-        if self._mav_conn is not None:
-            try:
-                for _ in range(10):
-                    msg = self._mav_conn.recv_match(blocking=False)
-                    if msg is None:
-                        break
-                    mtype = msg.get_type()
-
-                    if mtype == "ATTITUDE":
-                        self.hud.redraw(
-                            pitch   = math.degrees(msg.pitch),
-                            roll    = math.degrees(msg.roll),
-                            heading = math.degrees(msg.yaw) % 360,
-                        )
-                    elif mtype == "VFR_HUD":
-                        self.hud.redraw(
-                            airspeed    = msg.airspeed,
-                            altitude    = msg.alt,
-                            vspeed      = msg.climb,
-                            groundspeed = msg.groundspeed,
-                            heading     = msg.heading,
-                        )
-                    elif mtype == "GPS_RAW_INT":
-                        self.hud.redraw(gpsfix=msg.fix_type)
-
-                    elif mtype == "SYS_STATUS":
-                        self.hud.redraw(
-                            batterylevel     = msg.voltage_battery / 1000.0,
-                            current          = msg.current_battery / 100.0,
-                            batteryremaining = msg.battery_remaining,
-                        )
-                    elif mtype == "HEARTBEAT":
-                        from pymavlink import mavutil
-                        armed = bool(msg.base_mode & mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED)
-                        self.hud.redraw(status=armed)
-
-                    elif mtype == "GLOBAL_POSITION_INT":
-                        self.update_telemetry("ALT", msg.relative_alt / 1000.0)
-                        self.update_telemetry("VS",  msg.vz / 100.0)
-
-                    elif mtype == "NAV_CONTROLLER_OUTPUT":
-                        self.hud.redraw(
-                            xtrack_error  = msg.xtrack_error,
-                            targetheading = msg.target_bearing,
-                            disttowp      = msg.wp_dist,
-                        )
-                        self.update_telemetry("WP", msg.wp_dist)
-
-            except Exception as e:
-                print(f"Telemetry tick error: {e}")
-
-        self.after(50, self._telemetry_tick)
 
     def update_battery_ui(self):
 

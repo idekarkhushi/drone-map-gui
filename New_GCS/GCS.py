@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import tkinter as tk
+from numpy import inner
 import tkintermapview
 import serial.tools.list_ports
 import cv2
@@ -7,6 +8,7 @@ from PIL import Image, ImageTk
 import sys
 import math
 import time
+from pathlib import Path
 
 from HUD import HUDState, HUDRenderer
 from Camera import CameraControlStrip
@@ -16,6 +18,9 @@ from Systemstatus import SystemStatusHandler
 # ─── Appearance ──────────────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
+BASE_DIR = Path(__file__).resolve().parent
+ASSET_DIR = BASE_DIR / "assets"
  
 # ─── Color Palette ────────────────────────────────────────────────────────────
 BG_DARK       = "#0a0e14"
@@ -674,6 +679,7 @@ class BottomPanel(ctk.CTkFrame):
             border_width=1, border_color=BORDER, **kwargs,
         )
         self.grid_propagate(False)    # ← THIS is the critical line
+        self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=2)
         self.grid_columnconfigure(1, weight=2)
         self.grid_columnconfigure(2, weight=1)
@@ -694,7 +700,7 @@ class BottomPanel(ctk.CTkFrame):
         card.grid(row=0, column=col, columnspan=span, sticky="nsew",
                 padx=(10 if col == 0 else 3, 10 if col == 3 else 3), pady=4)
         card.grid_rowconfigure(0, weight=0)
-        card.grid_rowconfigure(1, weight=0)   # ← changed from weight=1
+        card.grid_rowconfigure(1, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -731,54 +737,111 @@ class BottomPanel(ctk.CTkFrame):
     def _build_ready(self):
         inner = self._section(0, "INTERCEPTOR CONTROL", TEXT_MUTED, span=2)
         inner.grid_rowconfigure(0, weight=0)
-        inner.grid_rowconfigure(1, weight=0)   # ← was weight=1
+        inner.grid_rowconfigure(1, weight=1)
         inner.grid_columnconfigure(0, weight=1)
-    
+
         self.interceptor_status_label = ctk.CTkLabel(
             inner,
-            text="AD 01\n READY",
             font=ctk.CTkFont(family="Times New Roman", size=11, weight="bold"),
             text_color=ACCENT_GREEN,
             anchor="w",
         )
         self.interceptor_status_label.grid(row=0, column=0, sticky="ew", pady=(0, 4), padx=(4, 0))
 
+        # ── Video canvas ──────────────────────────────────────────────────────────
+        self.video_canvas = tk.Canvas(
+            inner,
+            bg=BG_CARD,
+            highlightthickness=0,
+        )
+        self.video_canvas.grid(row=1, column=0, sticky="nsew", padx=0, pady=(0, 2))
+
+        # ── Start video loop ──────────────────────────────────────────────────────
+        self._video_cap = None
+        self._video_path = str(ASSET_DIR / "Missile _Video.mp4")
+        self._video_after_id = None
+        self._video_started = False
+
+        # Wait until canvas has real dimensions before starting
+        self.video_canvas.bind("<Configure>", self._on_video_canvas_ready)
+
+    def _start_video(self):
+        """Open the video file and begin the frame loop."""
         try:
-            pil_img = Image.open(r"New_GCS\assets\Missile.png").convert("RGBA")
-
-            # ── Remove dark/black background ──────────────────────────────────────
-            data = pil_img.getdata()
-            new_data = []
-            for r, g, b, a in data:
-                # Any pixel darker than threshold becomes transparent
-                if r < 60 and g < 60 and b < 60:
-                    new_data.append((0, 0, 0, 0))
-                else:
-                    new_data.append((r, g, b, a))
-            pil_img.putdata(new_data)
-
-            self._missile_ctk_image = ctk.CTkImage(
-                light_image=pil_img,
-                dark_image=pil_img,
-                size=(500, 100),
-            )
-
-            self.missile_label = ctk.CTkLabel(
-                inner,
-                image=self._missile_ctk_image,
-                text="",
-                fg_color="transparent",
-            )
-
+            self._video_cap = cv2.VideoCapture(self._video_path)
+            if not self._video_cap.isOpened():
+                self._draw_video_placeholder("Video not found")
+                return
+            fps = self._video_cap.get(cv2.CAP_PROP_FPS) or 30
+            self._video_frame_delay = max(16, int(1000 / fps))
+            self._pump_video_frame()
         except Exception as e:
-            self.missile_label = ctk.CTkLabel(
-                inner,
-                text=f"[IMAGE NOT FOUND]\n{e}",
-                text_color=ACCENT_RED,
-                font=ctk.CTkFont(family="Times New Roman", size=9),
-            )
+            self._draw_video_placeholder(str(e))
 
-        self.missile_label.grid(row=1, column=0, sticky="nsew")
+    def _pump_video_frame(self):
+        """Decode one frame, display it, schedule the next."""
+        cap = self._video_cap
+        if cap is None or not cap.isOpened():
+            return
+
+        ret, frame = cap.read()
+        if not ret:
+            # Loop: rewind to start
+            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = cap.read()
+            if not ret:
+                return
+
+        c = self.video_canvas
+        cw = c.winfo_width()
+        ch = c.winfo_height()
+        if cw < 4 or ch < 4:
+            self._video_after_id = c.after(self._video_frame_delay, self._pump_video_frame)
+            return
+
+        # Resize frame to fit canvas, preserving aspect ratio
+        frame_rgba = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
+        visible_mask = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) > 18
+        coords = cv2.findNonZero(visible_mask.astype("uint8"))
+
+        if coords is not None:
+            x, y, w, h = cv2.boundingRect(coords)
+            pad = 12
+            x0 = max(0, x - pad)
+            y0 = max(0, y - pad)
+            x1 = min(frame_rgba.shape[1], x + w + pad)
+            y1 = min(frame_rgba.shape[0], y + h + pad)
+            frame_rgba = frame_rgba[y0:y1, x0:x1]
+            visible_mask = visible_mask[y0:y1, x0:x1]
+
+        frame_rgba[:, :, 3] = (visible_mask * 255).astype("uint8")
+
+        fh, fw = frame_rgba.shape[:2]
+        scale = max((cw * 0.96) / fw, (ch * 0.88) / fh)
+        nw, nh = max(1, int(fw * scale)), max(1, int(fh * scale))
+        frame_resized = cv2.resize(frame_rgba, (nw, nh), interpolation=cv2.INTER_LINEAR)
+
+        # BGR → RGB → PhotoImage
+        pil_img = Image.fromarray(frame_resized)
+        photo = ImageTk.PhotoImage(pil_img)
+
+        c.delete("vframe")
+        c._photo = photo  # prevent GC
+        c.create_image(cw // 2, ch // 2, anchor="center", image=photo, tags="vframe")
+
+        self._video_after_id = c.after(self._video_frame_delay, self._pump_video_frame)
+
+    def _draw_video_placeholder(self, msg: str = "no video"):
+        c = self.video_canvas
+        c.delete("all")
+        w, h = c.winfo_width() or 160, c.winfo_height() or 70
+        c.create_text(w // 2, h // 2, text=f"[ {msg} ]",
+                    fill=TEXT_MUTED, font=("Times New Roman", 9))
+        
+    def _on_video_canvas_ready(self, event):
+        if not self._video_started and event.width > 10 and event.height > 10:
+            self._video_started = True
+            self._start_video()
 
     
     # ── Frame 2: Action ────────────────────────────────────────────────────────
@@ -788,13 +851,13 @@ class BottomPanel(ctk.CTkFrame):
         inner.grid_rowconfigure((0, 1), weight=1)
 
         self.launch_icon = ctk.CTkImage(
-            light_image=Image.open("New_GCS/assets/Launch.png"),
-            dark_image=Image.open("New_GCS/assets/Launch_white.png"),
+            light_image=Image.open(ASSET_DIR / "Launch.png"),
+            dark_image=Image.open(ASSET_DIR / "Launch_white.png"),
             size=(22, 22)
         )
         self.abort_icon = ctk.CTkImage(
-            light_image=Image.open("New_GCS/assets/Abort.png"),
-            dark_image=Image.open("New_GCS/assets/Abort.png"),
+            light_image=Image.open(ASSET_DIR / "Abort.png"),
+            dark_image=Image.open(ASSET_DIR / "Abort.png"),
             size=(22, 22)
         )
 
@@ -820,7 +883,7 @@ class BottomPanel(ctk.CTkFrame):
     def _build_system_status(self):
         inner = self._section(3, "SYSTEM STATUS", TEXT_MUTED)
         inner.grid_columnconfigure((0, 1), weight=1)
-        inner.grid_rowconfigure((0, 1), weight=0) 
+        inner.grid_rowconfigure((0, 1), weight=1) 
 
         self._sys_rows = {}
         rows = [
@@ -835,6 +898,10 @@ class BottomPanel(ctk.CTkFrame):
             self._sys_rows[lbl] = self._sys_badge(inner, r, c, lbl, val, color)
 
     def _sys_badge(self, parent, row, col, label, value, color):
+        
+        parent.grid_rowconfigure(row, weight=1)
+        parent.grid_columnconfigure(col, weight=1)
+        
         f = ctk.CTkFrame(
             parent, fg_color=BG_CARD, corner_radius=8,
             border_width=1, border_color=color,
@@ -847,18 +914,19 @@ class BottomPanel(ctk.CTkFrame):
 
         ctk.CTkLabel(
              f, text=label,
-            font=ctk.CTkFont(family="Times New Roman", size=12),
+            font=ctk.CTkFont(family="Times New Roman", size=10),
             text_color=TEXT_MUTED, anchor="w",
-        ).grid(row=0, column=0, sticky="w", padx=8, pady=(3, 0))
+        ).grid(row=0, column=0, sticky="w", padx=4, pady=(1, 0))
 
         val_lbl = ctk.CTkLabel(
             f, text=value,
-            font=ctk.CTkFont(family="Times New Roman", size=10, weight="bold"),
+            font=ctk.CTkFont(family="Times New Roman", size=9, weight="bold"),
             text_color=color, anchor="w",
         )
         # Store the frame too so we can update border colour live if needed
-        val_lbl.grid(row=1, column=0, sticky="w", padx=8, pady=(2, 8))
+        val_lbl.grid(row=1, column=0, sticky="w", padx=5, pady=(1, 4))
         return val_lbl
+        
 
     # ── Public API called by GCSApp ───────────────────────────────────────────
     
@@ -974,7 +1042,7 @@ class GCSApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.iconbitmap(r"New_GCS\assets\Aeromac.ico")
+        self.iconbitmap(str(ASSET_DIR / "Aeromac.ico"))
  
         self.title("GCS Dashboard")
         self.geometry("1280x800")
@@ -1124,6 +1192,13 @@ class GCSApp(ctk.CTk):
         return self.left_panel.get_active_mode()
     
     def on_closing(self):
+        # Stop video playback
+        bp = self.bottom_panel
+        if hasattr(bp, '_video_after_id') and bp._video_after_id:
+            bp.video_canvas.after_cancel(bp._video_after_id)
+        if hasattr(bp, '_video_cap') and bp._video_cap:
+            bp._video_cap.release()
+
         self._status_handler.disconnect()
         self.destroy()
  
